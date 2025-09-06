@@ -14,6 +14,8 @@ import { AttendanceManager } from '../pages/Pointages';
 import { Departments } from '../pages/Departement';
 import { PerformanceEmployer } from '../pages/Performance';
 import { Reports } from '../pages/Rapport';
+import Salaire from "../pages/Salaire";
+import SuiviFormations from "../pages/Formation";
 import { EmployeeForm } from '../forms/EmployeeForm';
 
 // ==================== Modal amélioré ====================
@@ -558,14 +560,16 @@ const UserManagement: React.FC = () => {
 };
 
 // ==================== AdminDashboard amélioré ====================
-type AdminView = 'dashboard' | 'leaves' | 'attendance' | 'departments' | 'reports' | 'settings' | 'users' | 'Performance';
+type AdminView = 'dashboard' | 'leaves' | 'attendance' | 'departments' | 'reports' | 'settings' | 'users' | 'Performance' |'SuiviFormations' | 'Salaire';
 const adminMenuItems = [
   { id: 'dashboard', label: 'Tableau de Bord', icon: BarChart3 },
   { id: 'departments', label: 'Départements', icon: Building2 },
   { id: 'leaves', label: 'Congés', icon: Calendar },
   { id: 'attendance', label: 'Présences', icon: Clock },
   { id: 'Performance', label: 'Performance', icon: FileText },
+  { id: 'SuiviFormations', label: 'SuiviFormations', icon: FileText },
   { id: 'reports', label: 'Rapports', icon: FileText },
+  { id: 'Salaire', label: 'Salaire', icon: FileText },
   { id: 'users', label: 'Utilisateurs', icon: Users },
   { id: 'settings', label: 'Paramètres', icon: Settings },
 ];
@@ -592,7 +596,9 @@ export const AdminDashboard: React.FC = () => {
       case 'attendance': return <AttendanceManager />;
       case 'Performance': return <PerformanceEmployer />;
       case 'departments': return <Departments />;
+      case 'SuiviFormations': return <SuiviFormations />;
       case 'reports': return <Reports />;
+      case 'Salaire': return <Salaire />;
       case 'users': return <UserManagement />;
       case 'settings': return <div className="p-4">Paramètres Système</div>;
       default: return <Dashboard />;
@@ -606,7 +612,9 @@ export const AdminDashboard: React.FC = () => {
       leaves: 'Gestion des Congés',
       attendance: 'Gestion des Présences',
       Performance: 'Gestion des Performances',
+      SuiviFormations: 'Gestion des Formations',
       reports: 'Rapports et Statistiques',
+      Salaire: 'Rapports et Paiement',
       users: 'Gestion des Utilisateurs',
       settings: 'Paramètres Système'
     };
@@ -631,7 +639,13 @@ export const AdminDashboard: React.FC = () => {
       {/* Sidebar pour desktop */}
       <div className={`hidden md:flex fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <div className="flex flex-col h-full">
+          {/* <img 
+                    src="../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" 
+                    alt="Logo SGRH" 
+                    className="w-28 mx-auto"
+                  />  */}
           <div className="p-4 flex items-center space-x-3">
+            
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -640,7 +654,7 @@ export const AdminDashboard: React.FC = () => {
             </button>
             {!sidebarCollapsed && (
               <div>
-                <h1 className="text-xl font-bold text-gray-800">SGRH</h1>
+              
                 <p className="text-xs text-gray-500">ADMIN <br /> Contrôle total</p>
               </div>
             )}

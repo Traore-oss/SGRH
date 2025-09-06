@@ -106,7 +106,7 @@ export const Departments: React.FC = () => {
   // 🔹 Charger les départements
   const fetchDepartments = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/departements/getAllDepartements');
+      const res = await fetch('http://localhost:8000/api/departements/getAllDepartements');
       const data = await res.json();
       setDepartments(data.departements || []);
     } catch (err) {
@@ -118,7 +118,7 @@ export const Departments: React.FC = () => {
   // 🔹 Charger les employés
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/Users/getAllEmployees', {
+      const res = await fetch('http://localhost:8000/api/Users/getAllEmployees', {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Erreur lors de la récupération des employés');
@@ -133,7 +133,7 @@ export const Departments: React.FC = () => {
   useEffect(() => {
     fetchDepartments();
     fetchEmployees();
-  },);
+  }, []);
 
   // 🔹 Calculer le total des employés
   const totalEmployees = employees.length;
@@ -146,7 +146,7 @@ export const Departments: React.FC = () => {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/departements/createDepartement', {
+      const res = await fetch('http://localhost:8000/api/departements/createDepartement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newDept, effectif: Number(newDept.effectif), budget: Number(newDept.budget) })
@@ -174,7 +174,7 @@ export const Departments: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/departements/updateDepartement/${editingDept.code_departement}`, {
+      const res = await fetch(`http://localhost:8000/api/departements/updateDepartement/${editingDept.code_departement}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...editingDept, effectif: Number(editingDept.effectif), budget: Number(editingDept.budget) })
@@ -197,7 +197,7 @@ export const Departments: React.FC = () => {
   // 🔹 Suppression d'un département
   const handleDeleteDepartment = async (dept: Department) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/departements/deleteDepartement/${dept.code_departement}`, { method: 'DELETE' });
+      const res = await fetch(`http://localhost:8000/api/departements/deleteDepartement/${dept.code_departement}`, { method: 'DELETE' });
       const data = await res.json();
       if (res.ok) {
         showNotification('success', data.message || 'Département supprimé avec succès');

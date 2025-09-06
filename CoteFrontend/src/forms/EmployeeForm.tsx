@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+// /* eslint-disable @typescript-eslint/no-explicit-any */
+// /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, X, Upload } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -8,7 +8,7 @@ import api from '../api/axios.config';
 interface Departement {
   _id: string;
   nom: string;
-  departement: string;
+  code_departement: string;
 }
 
 interface EmployeeFormProps {
@@ -17,7 +17,7 @@ interface EmployeeFormProps {
   onClose: () => void;
 }
 
-type RoleType = 'Employer' | 'Manager' | 'Admin' | 'rh';
+type RoleType = 'Employer' | 'Manager' | 'rh';
 type StatutType = 'Actif' | 'Inactif' | 'Suspendu';
 type ContratType = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
 
@@ -28,6 +28,7 @@ interface FormDataType {
   genre: string;
   date_naissance: string;
   telephone: string;
+  codePays: string;
   adresse: string;
   poste: string;
   departement?: string;
@@ -37,6 +38,18 @@ interface FormDataType {
   roleType: RoleType;
   photoFile?: File;
 }
+
+// Liste des codes pays avec indicatifs
+const countryCodes = [
+  { code: 'FR', name: 'France (+33)', prefix: '+33' },
+  { code: 'GN', name: 'Guinée (+224)', prefix: '+224' },
+  { code: 'US', name: 'USA (+1)', prefix: '+1' },
+  { code: 'GB', name: 'UK (+44)', prefix: '+44' },
+  { code: 'DE', name: 'Allemagne (+49)', prefix: '+49' },
+  { code: 'SN', name: 'Sénégal (+221)', prefix: '+221' },
+  { code: 'ML', name: 'Mali (+223)', prefix: '+223' },
+  { code: 'CI', name: "Côte d'Ivoire (+225)", prefix: '+225' },
+];
 
 export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onClose }) => {
   const [departements, setDepartements] = useState<Departement[]>([]);
@@ -55,9 +68,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
     genre: user?.genre || 'Homme',
     date_naissance: user?.date_naissance ? new Date(user.date_naissance).toISOString().slice(0, 10) : '',
     telephone: user?.telephone || '',
+    codePays: 'GN', // Par défaut Guinée
     adresse: user?.adresse || '',
     poste: user?.poste || '',
-    departement: user?.departement?._id || undefined,
+    departement: user?.departement?._id || user?.departement || '',
     salaire: user?.salaire ?? '',
     typeContrat: (user?.typeContrat as ContratType) || 'CDI',
     statut: (user?.statut as StatutType) || 'Actif',
@@ -65,12 +79,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
     photoFile: undefined
   });
 
-
   // 🔹 Récupération des départements
   useEffect(() => {
     const fetchDepartements = async () => {
       try {
-        const res = await api.get('http://localhost:5000/api/departements/getAllDepartements');
+        const res = await api.get('http://localhost:8000/api/departements/getAllDepartements');
         setDepartements(res.data.departements || []);
       } catch (err) {
         console.error('Erreur récupération départements:', err);
@@ -79,6 +92,20 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
     };
     fetchDepartements();
   }, []);
+
+  // 🔹 Fonction pour calculer l'âge à partir de la date de naissance
+  const calculateAge = (birthDate: string): number => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -93,8 +120,34 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
         return newErrors;
       });
     }
-  };
 
+    // 🔹 Validation immédiate de l'âge si c'est le champ date de naissance
+    if (name === 'date_naissance' && value) {
+      const age = calculateAge(value);
+      if (age < 18) {
+        setErrors(prev => ({
+          ...prev,
+          date_naissance: "L'âge doit être d'au moins 18 ans"
+        }));
+      } else if (errors.date_naissance) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.date_naissance;
+          return newErrors;
+        });
+      }
+    }
+
+    // 🔹 Réinitialiser le département si le rôle est rh
+    if (name === 'roleType' && value === 'rh') {
+      setFormData(prev => ({ ...prev, departement: '' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.departement;
+        return newErrors;
+      });
+    }
+  };
 
   const handlePhotoFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -160,12 +213,24 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
       newErrors.email = 'Email invalide';
     }
 
-    if (formData.telephone && !/^\+?[0-9\s\-\(\)]{10,}$/.test(formData.telephone)) {
+    // Validation du téléphone avec code pays
+    const selectedCountry = countryCodes.find(c => c.code === formData.codePays);
+    const fullPhoneNumber = selectedCountry ? selectedCountry.prefix + formData.telephone : formData.telephone;
+    
+    if (formData.telephone && !/^\+?[0-9\s\-\(\)]{8,}$/.test(fullPhoneNumber)) {
       newErrors.telephone = 'Numéro de téléphone invalide';
     }
 
-    if (formData.roleType !== 'Admin' && !formData.departement) {
+    if (formData.roleType !== 'rh' && !formData.departement) {
       newErrors.departement = 'Veuillez sélectionner un département';
+    }
+
+    // 🔹 Validation de l'âge (18 ans minimum)
+    if (formData.date_naissance) {
+      const age = calculateAge(formData.date_naissance);
+      if (age < 18) {
+        newErrors.date_naissance = "L'âge doit être d'au moins 18 ans";
+      }
     }
 
     setErrors(newErrors);
@@ -177,24 +242,45 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
       toast.error('Veuillez corriger les erreurs dans le formulaire');
       return;
     }
-    console.log(formData);
+
     setLoading(true);
     const data = new FormData();
 
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== undefined && key !== 'photoFile') data.append(key, value as any);
-    });
+    // 🔹 Préparer le numéro de téléphone avec le code pays
+    const selectedCountry = countryCodes.find(c => c.code === formData.codePays);
+    const telephoneComplet = selectedCountry ? selectedCountry.prefix + formData.telephone : formData.telephone;
 
-    if (formData.photoFile) data.append('photo', formData.photoFile);
+    // 🔹 Ajouter tous les champs au FormData
+    data.append('nom', formData.nom);
+    data.append('prenom', formData.prenom);
+    data.append('email', formData.email);
+    data.append('genre', formData.genre);
+    data.append('date_naissance', formData.date_naissance);
+    data.append('telephone', telephoneComplet);
+    data.append('adresse', formData.adresse);
+    data.append('poste', formData.poste);
+    data.append('salaire', formData.salaire.toString());
+    data.append('typeContrat', formData.typeContrat);
+    data.append('statut', formData.statut);
+    data.append('roleType', formData.roleType);
+
+    // 🔹 Ajouter le département seulement si sélectionné et si ce n'est pas un rh
+    if (formData.departement && formData.roleType !== 'rh') {
+      data.append('departement', formData.departement);
+    }
+
+    if (formData.photoFile) {
+      data.append('photo', formData.photoFile);
+    }
 
     try {
       if (user?._id) {
-        await api.put(`http://localhost:5000/api/Users/updateEmployee/${user._id}`, data, {
+        await api.put(`http://localhost:8000/api/Users/updateEmployee/${user._id}`, data, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Utilisateur modifié avec succès');
       } else {
-        await api.post('http://localhost:5000/api/Users/creerEmployer', data, {
+        await api.post('http://localhost:8000/api/Users/creerEmployer', data, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Utilisateur créé avec succès');
@@ -270,33 +356,50 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
             value={formData.date_naissance} 
             onChange={handleChange} 
             className={`w-full border rounded-lg p-3 ${errors.date_naissance ? 'border-red-500' : 'border-gray-300'}`}
+            max={new Date().toISOString().split('T')[0]}
           />
           {errors.date_naissance && <p className="text-red-500 text-sm mt-1">{errors.date_naissance}</p>}
         </div>
       </div>
 
-      {/* Téléphone / Adresse */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+      {/* Téléphone avec code pays */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-1">
+          <select 
+            name="codePays" 
+            value={formData.codePays} 
+            onChange={handleChange} 
+            className="w-full border border-gray-300 rounded-lg p-3"
+          >
+            {countryCodes.map(country => (
+              <option key={country.code} value={country.code}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="md:col-span-2">
           <input 
             name="telephone" 
             value={formData.telephone} 
             onChange={handleChange} 
-            placeholder="Téléphone" 
+            placeholder="Numéro de téléphone" 
             className={`w-full border rounded-lg p-3 ${errors.telephone ? 'border-red-500' : 'border-gray-300'}`}
           />
           {errors.telephone && <p className="text-red-500 text-sm mt-1">{errors.telephone}</p>}
         </div>
-        <div>
-          <input 
-            name="adresse" 
-            value={formData.adresse} 
-            onChange={handleChange} 
-            placeholder="Adresse" 
-            className={`w-full border rounded-lg p-3 ${errors.adresse ? 'border-red-500' : 'border-gray-300'}`}
-          />
-          {errors.adresse && <p className="text-red-500 text-sm mt-1">{errors.adresse}</p>}
-        </div>
+      </div>
+
+      {/* Adresse */}
+      <div>
+        <input 
+          name="adresse" 
+          value={formData.adresse} 
+          onChange={handleChange} 
+          placeholder="Adresse" 
+          className={`w-full border rounded-lg p-3 ${errors.adresse ? 'border-red-500' : 'border-gray-300'}`}
+        />
+        {errors.adresse && <p className="text-red-500 text-sm mt-1">{errors.adresse}</p>}
       </div>
 
       {/* Poste / Département */}
@@ -317,11 +420,11 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
             value={formData.departement}
             onChange={handleChange}
             className={`w-full border rounded-lg p-3 ${errors.departement ? 'border-red-500' : 'border-gray-300'}`}
-            disabled={formData.roleType === 'Admin'}
+            disabled={formData.roleType === 'rh'}
           >
             <option value="">Sélectionner un département</option>
             {departements.map(d => (
-              <option key={d._id} value={d._id}>{d.nom} ({d.departement})</option>
+              <option key={d._id} value={d._id}>{d.nom} ({d.code_departement})</option>
             ))}
           </select>
           {errors.departement && <p className="text-red-500 text-sm mt-1">{errors.departement}</p>}
@@ -346,121 +449,123 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
             name="typeContrat" 
             value={formData.typeContrat} 
             onChange={handleChange} 
-            className={`w-full border rounded-lg p-3 ${errors.typeContrat ? 'border-red-500' : 'border-gray-300'}`}
+            className="w-full border rounded-lg p-3"
           >
             <option value="CDI">CDI</option>
             <option value="CDD">CDD</option>
             <option value="Stage">Stage</option>
             <option value="Freelance">Freelance</option>
           </select>
-          {errors.typeContrat && <p className="text-red-500 text-sm mt-1">{errors.typeContrat}</p>}
         </div>
         <div>
           <select 
             name="statut" 
             value={formData.statut} 
             onChange={handleChange} 
-            className={`w-full border rounded-lg p-3 ${errors.statut ? 'border-red-500' : 'border-gray-300'}`}
+            className="w-full border rounded-lg p-3"
           >
             <option value="Actif">Actif</option>
             <option value="Inactif">Inactif</option>
             <option value="Suspendu">Suspendu</option>
           </select>
-          {errors.statut && <p className="text-red-500 text-sm mt-1">{errors.statut}</p>}
         </div>
       </div>
 
-      {/* Rôle / Photo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <select 
-            name="roleType" 
-            value={formData.roleType} 
-            onChange={handleChange} 
-            className={`w-full border rounded-lg p-3 ${errors.roleType ? 'border-red-500' : 'border-gray-300'}`}
-          >
-            <option value="Employer">Employé</option>
-            <option value="Manager">Manager</option>
-            <option value="Admin">Admin</option>
-          </select>
-          {errors.roleType && <p className="text-red-500 text-sm mt-1">{errors.roleType}</p>}
-        </div>
+      {/* Rôle */}
+      <div>
+        <select 
+          name="roleType" 
+          value={formData.roleType} 
+          onChange={handleChange} 
+          className={`w-full border rounded-lg p-3 ${errors.roleType ? 'border-red-400' : 'border-gray-300'}`}
+        >
+          <option value="Employer">Employé</option>
+          <option value="Manager">Manager</option>
+          <option value="rh">RH</option>
+        </select>
+        {errors.roleType && <p className="text-red-500 text-sm mt-1">{errors.roleType}</p>}
+      </div>
 
-        <div className="space-y-3">
-          <div className="flex flex-col items-center space-y-2">
-            {photoPreview ? (
-              <img src={photoPreview} alt="Aperçu" className="w-28 h-28 object-cover rounded-lg border" />
-            ) : (
-              <div className="w-28 h-28 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                <Camera className="h-8 w-8 text-gray-400" />
-              </div>
-            )}
-            
-            <div className="flex space-x-2">
-              <button 
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center"
-              >
-                <Upload className="h-4 w-4 mr-1" />
-                Importer
-              </button>
-              
-              <button 
-                type="button"
-                onClick={startCamera}
-                className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center"
-              >
-                <Camera className="h-4 w-4 mr-1" />
-                Caméra
-              </button>
-            </div>
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileSelect}
-              className="hidden"
+      {/* Photo */}
+      <div className="flex flex-col items-center gap-4">
+        {photoPreview && (
+          <div className="relative">
+            <img src={photoPreview} alt="Preview" className="w-32 h-32 rounded-full object-cover" />
+            <button 
+              type="button" 
+              onClick={() => { setPhotoPreview(''); setFormData(prev => ({ ...prev, photoFile: undefined })); }} 
+              className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {!photoPreview && !showVideo && (
+          <div className="flex gap-4">
+            <button 
+              type="button" 
+              onClick={startCamera} 
+              className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg"
+            >
+              <Camera size={20} /> Prendre une photo
+            </button>
+            <button 
+              type="button" 
+              onClick={() => fileInputRef.current?.click()} 
+              className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg"
+            >
+              <Upload size={20} /> Importer une photo
+            </button>
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileSelect} 
+              className="hidden" 
             />
           </div>
+        )}
 
-          {showVideo && (
-            <div className="relative mt-2">
-              <video ref={videoRef} autoPlay className="w-full rounded-lg border" />
-              <div className="absolute bottom-2 right-2 flex space-x-2">
-                <button 
-                  className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-                  onClick={stopCamera}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                <button 
-                  className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600"
-                  onClick={capturePhoto}
-                >
-                  <Camera className="h-4 w-4" />
-                </button>
-              </div>
+        {showVideo && (
+          <div className="flex flex-col items-center gap-2">
+            <video ref={videoRef} autoPlay className="w-64 h-64 rounded-lg border" />
+            <div className="flex gap-2">
+              <button 
+                type="button" 
+                onClick={capturePhoto} 
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+              >
+                Capturer
+              </button>
+              <button 
+                type="button" 
+                onClick={stopCamera} 
+                className="bg-red-500 text-white px-4 py-2 rounded-lg"
+              >
+                Annuler
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Boutons */}
-      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+      <div className="flex justify-end gap-4 pt-4">
         <button 
-          className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-          onClick={onClose}
+          type="button" 
+          onClick={onClose} 
+          className="px-4 py-2 rounded-lg border border-gray-300"
         >
           Annuler
         </button>
         <button 
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          onClick={submitForm}
+          type="button" 
+          onClick={submitForm} 
           disabled={loading}
+          className="px-4 py-2 rounded-lg bg-blue-500 text-white disabled:opacity-50"
         >
-          {loading ? 'Enregistrement...' : 'Enregistrer'}
+          {loading ? 'Enregistrement...' : (user?._id ? 'Modifier' : 'Créer')}
         </button>
       </div>
     </div>

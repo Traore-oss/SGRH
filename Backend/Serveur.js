@@ -14,7 +14,7 @@ const Pointages = require("./Routes/PointageRoutes");
 const SalaireRoutes = require("./Routes/SalaireRoutes");
 const authRoutes = require("./Routes/authRoutes");
 const userRoutes = require("./Routes/userRoutes");
-const Evaluation = require("./Routes/evaluationRoutes");
+const performanceRoutes = require('./Routes/performanceRoutes');
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -52,7 +52,8 @@ app.use("/api/conges", demandeConges);
 app.use("/api/formation", GestionFormation);
 app.use("/api/pointages", Pointages);
 app.use("/api/salaires", SalaireRoutes);
-app.use("/api/evaluation", Evaluation);
+// app.use("/api/evaluation", Evaluation);
+app.use('/api', performanceRoutes);
 
 // Lancement serveur
 app.listen(port, () => {

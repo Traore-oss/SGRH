@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
 import { 
   User, 
   Calendar, 
@@ -10,11 +10,22 @@ import {
   LogOut,
   Briefcase
 } from 'lucide-react';
+import { useState } from 'react';
 
 type EmployeeView = 'dashboard' | 'profile' | 'leaves' | 'attendance' | 'goals' | 'payslips';
 
+interface UserProfile {
+  name: string;
+  email: string;
+  role: string;
+  position: string;
+  department: string;
+  hireDate: string;
+  manager: string;
+}
+
 interface EmployeeDashboardProps {
-  user: { name: string; role: string };
+  user: UserProfile;
   onLogout: () => void;
 }
 
@@ -36,7 +47,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ user, onLo
       case 'dashboard':
         return <EmployeeOverview />;
       case 'profile':
-        return <EmployeeProfile />;
+        return <EmployeeProfile user={user} />;
       case 'leaves':
         return <EmployeeLeaves />;
       case 'attendance':
@@ -225,8 +236,12 @@ const EmployeeOverview: React.FC = () => {
   );
 };
 
-// Profil employé
-const EmployeeProfile: React.FC = () => {
+// Profil employé avec user dynamique
+interface EmployeeProfileProps {
+  user: UserProfile;
+}
+
+const EmployeeProfile: React.FC<EmployeeProfileProps> = ({ user }) => {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -234,27 +249,27 @@ const EmployeeProfile: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
-            <p className="text-gray-800">Julie Moreau</p>
+            <p className="text-gray-800">{user.name}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <p className="text-gray-800">julie.moreau@company.com</p>
+            <p className="text-gray-800">{user.email}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Poste</label>
-            <p className="text-gray-800">Développeur Frontend</p>
+            <p className="text-gray-800">{user.position}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
-            <p className="text-gray-800">Technologies de l'Information</p>
+            <p className="text-gray-800">{user.department}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label>
-            <p className="text-gray-800">15 mars 2022</p>
+            <p className="text-gray-800">{user.hireDate}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Manager</label>
-            <p className="text-gray-800">Pierre Martin</p>
+            <p className="text-gray-800">{user.manager}</p>
           </div>
         </div>
       </div>
@@ -262,7 +277,8 @@ const EmployeeProfile: React.FC = () => {
   );
 };
 
-// Congés employé
+// Les autres composants restent inchangés
+
 const EmployeeLeaves: React.FC = () => {
   return (
     <div className="space-y-6">
@@ -298,7 +314,6 @@ const EmployeeLeaves: React.FC = () => {
   );
 };
 
-// Présences employé
 const EmployeeAttendance: React.FC = () => {
   return (
     <div className="space-y-6">
@@ -331,7 +346,6 @@ const EmployeeAttendance: React.FC = () => {
   );
 };
 
-// Objectifs employé
 const EmployeeGoals: React.FC = () => {
   return (
     <div className="space-y-6">
@@ -364,7 +378,6 @@ const EmployeeGoals: React.FC = () => {
   );
 };
 
-// Bulletins de paie employé
 const EmployeePayslips: React.FC = () => {
   return (
     <div className="space-y-6">

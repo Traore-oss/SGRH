@@ -1,19 +1,15 @@
-
 const Attendance = require('../Models/pointageModel');
 const User = require('../Models/usersModel');
 
-// 🔹 Ajouter une présence
+// Ajouter une présence
 exports.addAttendance = async (req, res) => {
   try {
     const { matricule, date } = req.body;
-    if (!matricule || !date)
-      return res.status(400).json({ message: "Matricule et date obligatoires" });
+    if (!matricule || !date) return res.status(400).json({ message: "Matricule et date obligatoires" });
 
-    // Vérifier si l'employé existe
     const employe = await User.findOne({ matricule });
     if (!employe) return res.status(404).json({ message: "Employé non trouvé" });
 
-    // Vérifier si la présence existe déjà
     const existing = await Attendance.findOne({ matricule, date });
     if (existing) return res.status(400).json({ message: "Présence déjà enregistrée" });
 
@@ -28,22 +24,20 @@ exports.addAttendance = async (req, res) => {
     });
 
     await attendance.save();
-    res.status(201).json({ message: "Présence ajoutée", attendance });
+    res.status(201).json(attendance);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// 🔹 Mettre à jour l'arrivée
+// Mettre à jour l'arrivée
 exports.updatePresence = async (req, res) => {
   try {
     const { matricule, date, checked } = req.body;
-
     const record = await Attendance.findOne({ matricule, date });
     if (!record) return res.status(404).json({ message: "Enregistrement non trouvé" });
 
     const now = new Date();
-
     if (checked) {
       record.heureArrivee = now.toTimeString().slice(0, 8);
       const limite = new Date(`${date}T08:00:00`);
@@ -68,17 +62,16 @@ exports.updatePresence = async (req, res) => {
     }
 
     await record.save();
-    res.json({ message: "Présence mise à jour", record });
+    res.json(record);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// 🔹 Marquer départ
+// Marquer le départ
 exports.setDeparture = async (req, res) => {
   try {
     const { matricule, date } = req.body;
-
     const record = await Attendance.findOne({ matricule, date });
     if (!record) return res.status(404).json({ message: "Enregistrement non trouvé" });
     if (record.statut === "Absent") return res.status(400).json({ message: "Veuillez marquer l'arrivée avant le départ" });
@@ -86,47 +79,47 @@ exports.setDeparture = async (req, res) => {
     const now = new Date();
     record.heureDepart = now.toTimeString().slice(0, 8);
 
-    const start = new Date(`${date}T${record.heureArrivee}`);
-    const end = new Date(`${date}T${record.heureDepart}`);
-    const diffMs = end - start;
-    const diffHours = Math.floor(diffMs / 1000 / 60 / 60);
-    const diffMinutes = Math.floor((diffMs / 1000 / 60) % 60);
+    const [hours, minutes] = record.heureArrivee.split(':').map(Number);
+    const start = new Date(record.date);
+    start.setHours(hours, minutes, 0, 0);
+    let diffMs = now - start;
+    if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
 
-    record.heuresTravaillees = `${diffHours}h${diffMinutes}m`;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    record.heuresTravaillees = `${diffHours}h${diffMinutes.toString().padStart(2,'0')}m`;
 
     await record.save();
-    res.json({ message: "Départ enregistré", record });
+    res.json(record);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// 🔹 Récupérer toutes les présences avec infos employé
+// Récupérer les présences
 exports.getAttendances = async (req, res) => {
   try {
-    const { status, date, period } = req.query;
+    const { date } = req.params;
     let query = {};
-
-    if (status && status !== "Tous") query.statut = status;
-    if (date) {
-      const selectedDate = new Date(date);
-      if (period === "jour") query.date = selectedDate.toISOString().split("T")[0];
-      else if (period === "mois" || period === "semaine") {
-        const month = selectedDate.getMonth();
-        const year = selectedDate.getFullYear();
-        query.date = { $regex: `^${year}-${String(month + 1).padStart(2, '0')}` };
-      }
-    }
+    if (date) query.date = date;
 
     const records = await Attendance.find(query).sort({ date: -1 });
-
-    // Ajouter les infos de l'employé
     const result = await Promise.all(records.map(async rec => {
-      const employe = await User.findOne({ matricule: rec.matricule }, 'nom prenom poste matricule');
-      return { ...rec.toObject(), employe };
+      const employe = await User.findOne({ matricule: rec.matricule }, 'nom prenom matricule statut isActive');
+      return { ...rec.toObject(), ...employe.toObject() };
     }));
 
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Supprimer une présence
+exports.deleteAttendance = async (req, res) => {
+  try {
+    await Attendance.findByIdAndDelete(req.params.id);
+    res.json({ message: "Présence supprimée" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

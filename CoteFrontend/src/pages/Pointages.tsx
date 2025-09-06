@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { Pie, Bar } from "react-chartjs-2";
 import {
@@ -10,34 +11,23 @@ import {
   BarElement,
   Title,
 } from "chart.js";
+import { getEmployees } from "../Components/ServiceEmployer";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// 🔹 Interface pour un département
-export interface Departement {
-  _id: string;
-  nom: string;
-}
-
-// 🔹 Interface pour un employé tel que retourné par l'API
-export interface Employee {
-  isActive: any;
+interface Employee {
   _id: string;
   matricule: string;
   nom: string;
   prenom: string;
-  email: string;
-  poste: string;
-  departement?: Departement;
-  salaire: string | number;
-  typeContrat: 'CDI' | 'CDD';
-  role: string;
-  photo?: string;
+  statut: string;
+  isActive: boolean;
 }
 
 interface AttendanceRecord {
+  _id?: string;
   employeeId: string;
   matricule: string;
   nom: string;
@@ -50,116 +40,52 @@ interface AttendanceRecord {
   retard: string;
 }
 
-// 🔹 Récupérer tous les employés
-export const getEmployees = async (): Promise<Employee[]> => {
-  try {
-    const res = await fetch(`${API_BASE}/api/Users/getAllEmployees`, {
-      credentials: 'include',
-    });
-    if (!res.ok) throw new Error('Erreur lors de la récupération des employés');
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error(err);
-    return [];
-  }
-};
-
-// 🔹 Fonctions pour gérer le localStorage
-const STORAGE_KEY = "attendance_records";
-
-const saveAttendanceToStorage = (attendance: AttendanceRecord[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(attendance));
-};
-
-const loadAttendanceFromStorage = (): AttendanceRecord[] | null => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : null;
-};
-
 export const AttendanceManager: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("Tous");
-  const [filterPeriod, setFilterPeriod] = useState("mois");
+  const [filterPeriod, setFilterPeriod] = useState("jour");
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
   const [time, setTime] = useState(new Date());
-  const [notification, setNotification] = useState<{type: string, message: string} | null>(null);
+  const [notification, setNotification] = useState<{ type: string; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Afficher une notification temporaire
+  // Notification
   const showNotification = (type: string, message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Mise à jour de l'heure en temps réel
+  // Mise à jour de l'heure
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Charger les données depuis l'API et le localStorage
+  // Charger les employés et présences
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        
-        // Récupération des employés depuis l'API
+
         const employeesData = await getEmployees();
-        setEmployees(employeesData);
-        
-        // Vérifier s'il y a des données de présence sauvegardées
+        const activeEmployees = employeesData.filter(
+          (emp: Employee) => emp.statut === "Actif" && emp.isActive
+        );
+        setEmployees(activeEmployees);
+
         const today = new Date().toISOString().split("T")[0];
-        const storedAttendance = loadAttendanceFromStorage();
-        
-        let initialAttendance: AttendanceRecord[];
-        
-        if (storedAttendance && storedAttendance.length > 0) {
-          // Vérifier si les données sauvegardées correspondent à la date d'aujourd'hui
-          const todayRecords = storedAttendance.filter(record => record.date === today);
-          
-          if (todayRecords.length > 0) {
-            // Utiliser les données sauvegardées pour aujourd'hui
-            initialAttendance = todayRecords;
-            
-            // Ajouter les nouveaux employés qui ne sont pas dans les données sauvegardées
-            employeesData.forEach(emp => {
-              const existingRecord = initialAttendance.find(r => r.matricule === emp.matricule);
-              if (!existingRecord) {
-                initialAttendance.push({
-                  employeeId: emp._id,
-                  matricule: emp.matricule,
-                  nom: emp.nom,
-                  prenom: emp.prenom,
-                  date: today,
-                  statut: "Absent",
-                  heureArrivee: "-",
-                  heureDepart: "-",
-                  heuresTravaillees: "-",
-                  retard: "-",
-                });
-              }
-            });
-          } else {
-            // Créer de nouvelles données pour aujourd'hui
-            initialAttendance = employeesData.map(emp => ({
-              employeeId: emp._id,
-              matricule: emp.matricule,
-              nom: emp.nom,
-              prenom: emp.prenom,
-              date: today,
-              statut: "Absent",
-              heureArrivee: "-",
-              heureDepart: "-",
-              heuresTravaillees: "-",
-              retard: "-",
-            }));
-          }
-        } else {
-          // Aucune donnée sauvegardée, créer de nouvelles données
-          initialAttendance = employeesData.map(emp => ({
+        const response = await fetch(`${API_BASE}/api/pointages/getByDate/${today}`, {
+          credentials: "include",
+        });
+
+        let attendanceData: AttendanceRecord[] = [];
+
+        if (response.ok) attendanceData = await response.json();
+
+        if (attendanceData.length === 0) {
+          attendanceData = activeEmployees.map((emp) => ({
             employeeId: emp._id,
             matricule: emp.matricule,
             nom: emp.nom,
@@ -171,13 +97,29 @@ export const AttendanceManager: React.FC = () => {
             heuresTravaillees: "-",
             retard: "-",
           }));
+        } else {
+          activeEmployees.forEach((emp) => {
+            const existingRecord = attendanceData.find((r) => r.employeeId === emp._id);
+            if (!existingRecord) {
+              attendanceData.push({
+                employeeId: emp._id,
+                matricule: emp.matricule,
+                nom: emp.nom,
+                prenom: emp.prenom,
+                date: today,
+                statut: "Absent",
+                heureArrivee: "-",
+                heureDepart: "-",
+                heuresTravaillees: "-",
+                retard: "-",
+              });
+            }
+          });
         }
-        
-        setAttendance(initialAttendance);
-        saveAttendanceToStorage(initialAttendance);
+
+        setAttendance(attendanceData);
         setIsLoading(false);
         showNotification("success", "Données chargées avec succès");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         setIsLoading(false);
         showNotification("error", "Erreur lors du chargement des données");
@@ -187,108 +129,141 @@ export const AttendanceManager: React.FC = () => {
     fetchData();
   }, []);
 
-  // Mettre à jour le localStorage chaque fois que l'état attendance change
-  useEffect(() => {
-    if (attendance.length > 0) {
-      saveAttendanceToStorage(attendance);
-    }
-  }, [attendance]);
+  // Sauvegarder une présence
+  const saveAttendanceRecord = async (record: AttendanceRecord) => {
+    try {
+      const method = record._id ? "PUT" : "POST";
+      const url = record._id
+        ? `${API_BASE}/api/pointages/updatePresence/${record._id}`
+        : `${API_BASE}/api/pointages/addAttendance`;
 
-  // Marquer présence / retard
-  const togglePresence = (record: AttendanceRecord, checked: boolean) => {
-    setAttendance((prev) => {
-      const updatedAttendance = prev.map((r) => {
-        if (r.matricule === record.matricule && r.date === record.date) {
-          const now = new Date();
-          const heureFormat = now.toLocaleTimeString("fr-FR", { hour12: false });
-          if (checked) {
-            const limite = new Date(`${r.date}T08:00:00`);
-            const diffSec = Math.floor((now.getTime() - limite.getTime()) / 1000);
-            if (diffSec > 0) {
-              const totalMinutes = Math.floor(diffSec / 60);
-              const hours = Math.floor(totalMinutes / 60);
-              const minutes = totalMinutes % 60;
-              return {
-                ...r,
-                statut: "Retard",
-                heureArrivee: heureFormat,
-                retard: `${hours}h${minutes}m`,
-              };
-            } else {
-              return {
-                ...r,
-                statut: "Présent",
-                heureArrivee: heureFormat,
-                retard: "-",
-              };
-            }
-          } else {
-            return {
-              ...r,
-              statut: "Absent",
-              heureArrivee: "-",
-              heureDepart: "-",
-              heuresTravaillees: "-",
-              retard: "-",
-            };
-          }
-        }
-        return r;
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(record),
       });
-      
-      return updatedAttendance;
-    });
+
+      if (!response.ok) throw new Error("Erreur lors de la sauvegarde");
+
+      const savedRecord = await response.json();
+      setAttendance((prev) =>
+        prev.map((r) =>
+          r.employeeId === record.employeeId && r.date === record.date ? savedRecord : r
+        )
+      );
+
+      return savedRecord;
+    } catch (error) {
+      showNotification("error", "Erreur lors de l'enregistrement");
+      throw error;
+    }
   };
 
-  // Marquer départ
-  const setDeparture = (record: AttendanceRecord) => {
+  // --- Fonctions corrigées pour retourner l'objet mis à jour ---
+
+  const markArrival = async (record: AttendanceRecord) => {
+    try {
+      const now = new Date();
+      const heureFormat = now.toLocaleTimeString("fr-FR", { hour12: false });
+
+      const limite = new Date(`${record.date}T08:00:00`);
+      const diffSec = Math.floor((now.getTime() - limite.getTime()) / 1000);
+
+      let updatedRecord: AttendanceRecord;
+      if (diffSec > 0) {
+        const totalMinutes = Math.floor(diffSec / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        updatedRecord = {
+          ...record,
+          statut: "Retard",
+          heureArrivee: heureFormat,
+          retard: `${hours}h${minutes}m`,
+        };
+      } else {
+        updatedRecord = {
+          ...record,
+          statut: "Présent",
+          heureArrivee: heureFormat,
+          retard: "-",
+        };
+      }
+
+      const saved = await saveAttendanceRecord(updatedRecord);
+      showNotification("success", "Arrivée enregistrée");
+      return saved;
+    } catch (error) {
+      console.error(error);
+      showNotification("error", "Erreur lors de l'enregistrement de l'arrivée");
+      return record;
+    }
+  };
+
+  const markDeparture = async (record: AttendanceRecord) => {
     if (record.statut === "Absent") {
-      showNotification("error", "Veuillez cocher la case d'arrivée avant de marquer le départ !");
-      return;
+      showNotification("error", "Veuillez marquer l'arrivée avant de marquer le départ !");
+      return record;
     }
-    
-    const now = new Date();
-    const heureFormat = now.toLocaleTimeString("fr-FR", { hour12: false });
-    
-    setAttendance((prev) => {
-      const updatedAttendance = prev.map((r) => {
-        if (r.matricule === record.matricule && r.date === record.date) {
-          // Correction du calcul des heures travaillées
-          const [hours, minutes] = r.heureArrivee.split(':').map(Number);
-          const start = new Date(record.date);
-          start.setHours(hours, minutes, 0, 0);
-          
-          let diffMs = now.getTime() - start.getTime();
-          
-          // Si l'heure de départ est le lendemain (valeur négative)
-          if (diffMs < 0) {
-            diffMs += 24 * 60 * 60 * 1000; // Ajouter un jour en millisecondes
-          }
-          
-          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-          const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-          
-          return {
-            ...r,
-            heureDepart: heureFormat,
-            heuresTravaillees: `${diffHours}h${diffMinutes.toString().padStart(2, '0')}m`,
-          };
-        }
-        return r;
-      });
-      
-      return updatedAttendance;
-    });
-    
-    showNotification("success", "Départ enregistré avec succès");
+
+    try {
+      const now = new Date();
+      const heureFormat = now.toLocaleTimeString("fr-FR", { hour12: false });
+
+      const [hours, minutes] = record.heureArrivee.split(":").map(Number);
+      const start = new Date(record.date);
+      start.setHours(hours, minutes, 0, 0);
+
+      let diffMs = now.getTime() - start.getTime();
+      if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      const updatedRecord = {
+        ...record,
+        heureDepart: heureFormat,
+        heuresTravaillees: `${diffHours}h${diffMinutes.toString().padStart(2, "0")}m`,
+      };
+
+      const saved = await saveAttendanceRecord(updatedRecord);
+      showNotification("success", "Départ enregistré avec succès");
+      return saved;
+    } catch (error) {
+      console.error(error);
+      showNotification("error", "Erreur lors de l'enregistrement du départ");
+      return record;
+    }
   };
 
-  // Filtrer les données
+  const markAbsence = async (record: AttendanceRecord) => {
+    try {
+      const updatedRecord = {
+        ...record,
+        statut: "Absent",
+        heureArrivee: "-",
+        heureDepart: "-",
+        heuresTravaillees: "-",
+        retard: "-",
+      };
+
+      const saved = await saveAttendanceRecord(updatedRecord);
+      showNotification("success", "Absence enregistrée");
+      return saved;
+    } catch (error) {
+      console.error(error);
+      showNotification("error", "Erreur lors de l'enregistrement de l'absence");
+      return record;
+    }
+  };
+
+  // --- Filtrage et statistiques ---
   const filteredAttendance = attendance.filter((r) => {
     const recordDate = new Date(r.date);
     const selectedDate = new Date(filterDate);
-
     let dateMatch = true;
+
     if (filterPeriod === "jour") {
       dateMatch = recordDate.toISOString().split("T")[0] === selectedDate.toISOString().split("T")[0];
     } else if (filterPeriod === "semaine") {
@@ -303,10 +278,9 @@ export const AttendanceManager: React.FC = () => {
 
     if (!dateMatch) return false;
     if (filterStatus !== "Tous" && r.statut !== filterStatus) return false;
-    
-    // Filtre de recherche
-    if (searchTerm && !r.matricule.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !r.nom.toLowerCase().includes(searchTerm.toLowerCase()) && 
+
+    if (searchTerm && !r.matricule.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !r.nom.toLowerCase().includes(searchTerm.toLowerCase()) &&
         !r.prenom.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
@@ -324,25 +298,25 @@ export const AttendanceManager: React.FC = () => {
   const pieData = {
     labels: ["Présents", "Retards", "Absents"],
     datasets: [
-      { 
-        data: [stats.present, stats.retard, stats.absent], 
+      {
+        data: [stats.present, stats.retard, stats.absent],
         backgroundColor: ["#16a34a", "#f59e0b", "#dc2626"],
         borderWidth: 0,
-        hoverOffset: 12
-      }
+        hoverOffset: 12,
+      },
     ],
   };
 
   const barData = {
     labels: ["Présents", "Retards", "Absents"],
     datasets: [
-      { 
-        label: "Nombre d'employés", 
-        data: [stats.present, stats.retard, stats.absent], 
+      {
+        label: "Nombre d'employés",
+        data: [stats.present, stats.retard, stats.absent],
         backgroundColor: ["#16a34a", "#f59e0b", "#dc2626"],
         borderRadius: 6,
         borderSkipped: false,
-      }
+      },
     ],
   };
 
@@ -351,26 +325,16 @@ export const AttendanceManager: React.FC = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom' as const,
-        labels: {
-          usePointStyle: true,
-          padding: 20,
-          font: {
-            size: 12
-          }
-        }
+        position: "bottom" as const,
+        labels: { usePointStyle: true, padding: 20, font: { size: 14 } },
       },
     },
   };
 
-  const barOptions = {
-    responsive: true,
+  const barOptions = { 
+    responsive: true, 
     maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false
-      },
-    },
+    plugins: { legend: { display: false } },
     scales: {
       y: {
         beginAtZero: true,
@@ -415,101 +379,88 @@ export const AttendanceManager: React.FC = () => {
 
         {/* Cartes statistiques */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-blue-100">
+          <div className="bg-white rounded-lg shadow-sm p-4 border border-blue-100">
             <div className="flex items-center">
-              <div className="rounded-full bg-blue-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <div className="rounded-full bg-blue-100 p-2 mr-3">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                 </svg>
               </div>
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Total Employés</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{employees.length}</p>
+                <p className="text-xs font-medium text-gray-500">Total Employés</p>
+                <p className="text-lg font-semibold text-gray-900">{employees.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-green-100">
+          <div className="bg-white rounded-lg shadow-sm p-4 border border-green-100">
             <div className="flex items-center">
-              <div className="rounded-full bg-green-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <div className="rounded-full bg-green-100 p-2 mr-3">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Présents</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{stats.present}</p>
+                <p className="text-xs font-medium text-gray-500">Présents</p>
+                <p className="text-lg font-semibold text-gray-900">{stats.present}</p>
+                <p className="text-xs text-gray-400">{stats.present > 0 ? `${Math.round((stats.present / employees.length) * 100)}%` : '0%'}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-yellow-100">
+          <div className="bg-white rounded-lg shadow-sm p-4 border border-yellow-100">
             <div className="flex items-center">
-              <div className="rounded-full bg-yellow-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <div className="rounded-full bg-yellow-100 p-2 mr-3">
+                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Retards</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{stats.retard}</p>
+                <p className="text-xs font-medium text-gray-500">Retards</p>
+                <p className="text-lg font-semibold text-gray-900">{stats.retard}</p>
+                <p className="text-xs text-gray-400">{stats.retard > 0 ? `${Math.round((stats.retard / employees.length) * 100)}%` : '0%'}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-red-100">
+          <div className="bg-white rounded-lg shadow-sm p-4 border border-red-100">
             <div className="flex items-center">
-              <div className="rounded-full bg-red-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <div className="rounded-full bg-red-100 p-2 mr-3">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
               </div>
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Absents</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{stats.absent}</p>
+                <p className="text-xs font-medium text-gray-500">Absents</p>
+                <p className="text-lg font-semibold text-gray-900">{stats.absent}</p>
+                <p className="text-xs text-gray-400">{stats.absent > 0 ? `${Math.round((stats.absent / employees.length) * 100)}%` : '0%'}</p>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Diagrammes */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6 mb-6 sm:mb-8">
-          <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 text-center">Répartition des présences</h3>
-            <div className="h-60 sm:h-72 lg:h-80">
-              <Pie data={pieData} options={pieOptions} />
-            </div>
-          </div>
-          <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 text-center">Statistiques des présences</h3>
-            <div className="h-60 sm:h-72 lg:h-80">
-              <Bar data={barData} options={barOptions} />
             </div>
           </div>
         </div>
 
         {/* Filtres et recherche */}
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-5 lg:p-6 mb-6 sm:mb-8 border border-gray-100">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Filtres et Recherche</h3>
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-100">
+          <h3 className="text-base font-semibold text-gray-800 mb-3">Filtres et Recherche</h3>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Rechercher un employé</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Rechercher</label>
               <input 
                 type="text" 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
                 placeholder="Matricule, nom ou prénom" 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
               />
             </div>
             
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Période</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Période</label>
               <select 
                 value={filterPeriod} 
                 onChange={(e) => setFilterPeriod(e.target.value)} 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="jour">Jour</option>
                 <option value="semaine">Semaine</option>
@@ -518,23 +469,23 @@ export const AttendanceManager: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Date</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
               <input 
                 type="date" 
                 value={filterDate} 
                 onChange={(e) => setFilterDate(e.target.value)} 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
               />
             </div>
             
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Statut</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Statut</label>
               <select 
                 value={filterStatus} 
                 onChange={(e) => setFilterStatus(e.target.value)} 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="Tous">Tous les statuts</option>
+                <option value="Tous">Tous</option>
                 <option value="Présent">Présent</option>
                 <option value="Retard">Retard</option>
                 <option value="Absent">Absent</option>
@@ -543,37 +494,52 @@ export const AttendanceManager: React.FC = () => {
           </div>
         </div>
 
+        {/* Diagrammes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-800 mb-3 text-center">Répartition des présences</h3>
+            <div className="h-60">
+              <Pie data={pieData} options={pieOptions} />
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-800 mb-3 text-center">Statistiques des présences</h3>
+            <div className="h-60">
+              <Bar data={barData} options={barOptions} />
+            </div>
+          </div>
+        </div>
+
         {/* Tableau des présences */}
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden border border-gray-100">
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800">Liste des présences</h3>
-            <span className="text-xs sm:text-sm text-gray-500">{filteredAttendance.length} employé(s) trouvé(s)</span>
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100">
+          <div className="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h3 className="text-base font-semibold text-gray-800">Liste des présences</h3>
+            <span className="text-xs text-gray-500">{filteredAttendance.length} employé(s) trouvé(s)</span>
           </div>
           
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matricule</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom & Prénom</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Date</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Heure Arrivée</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Heure Départ</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Heures Travaillées</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Retard</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Présence</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matricule</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prénom</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Arrivée</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Départ</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Heures</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Retard</th>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredAttendance.length > 0 ? (
                   filteredAttendance.map((r) => (
-                    <tr key={`${r.matricule}-${r.date}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.matricule}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-900">{r.nom} {r.prenom}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{r.date}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                    <tr key={`${r.employeeId}-${r.date}`} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{r.matricule}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{r.nom}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{r.prenom}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full
                           ${r.statut === "Présent" ? "bg-green-100 text-green-800" : 
                             r.statut === "Retard" ? "bg-yellow-100 text-yellow-800" : 
@@ -581,51 +547,50 @@ export const AttendanceManager: React.FC = () => {
                           {r.statut}
                         </span>
                       </td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">{r.heureArrivee}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">{r.heureDepart}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden xl:table-cell">{r.heuresTravaillees}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden xl:table-cell">{r.retard}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={r.statut !== "Absent"} 
-                            onChange={(e) => togglePresence(r, e.target.checked)} 
-                            className="sr-only peer" 
-                          />
-                          <div className={`w-10 h-5 sm:w-11 sm:h-6 rounded-full peer 
-                            ${r.statut !== "Absent" ? 'bg-blue-600' : 'bg-gray-200'} 
-                            peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] 
-                            after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all`}
-                          ></div>
-                        </label>
-                      </td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button 
-                          onClick={() => setDeparture(r)} 
-                          disabled={r.statut === "Absent"}
-                          className={`px-2 py-1 sm:px-3 sm:py-1 rounded-md text-xs sm:text-sm font-medium flex items-center
-                            ${r.statut === "Absent" ? 
-                              "bg-gray-200 text-gray-400 cursor-not-allowed" : 
-                              "bg-purple-600 text-white hover:bg-purple-700"}`}
-                        >
-                          <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                          </svg>
-                          Départ
-                        </button>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{r.heureArrivee}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{r.heureDepart}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{r.heuresTravaillees}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{r.retard}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`arrival-${r.employeeId}`}
+                              checked={r.statut !== "Absent"}
+                              onChange={() => r.statut === "Absent" ? markArrival(r) : markAbsence(r)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor={`arrival-${r.employeeId}`} className="ml-2 block text-xs text-gray-700">
+                              {r.statut === "Absent" ? "Marquer arrivée" : "Marquer absence"}
+                            </label>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`departure-${r.employeeId}`}
+                              checked={r.heureDepart !== "-"}
+                              onChange={() => r.heureDepart === "-" ? markDeparture(r) : null}
+                              disabled={r.statut === "Absent" || r.heureDepart !== "-"}
+                              className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded disabled:opacity-50"
+                            />
+                            <label htmlFor={`departure-${r.employeeId}`} className="ml-2 block text-xs text-gray-700">
+                              Marquer départ
+                            </label>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={10} className="px-4 py-6 sm:px-6 sm:py-8 text-center">
+                    <td colSpan={9} className="px-4 py-6 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-500">
-                        <svg className="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <p className="text-sm sm:text-base font-medium">Aucun employé trouvé</p>
-                        <p className="mt-1 text-xs sm:text-sm">Aucune donnée ne correspond à vos critères de recherche</p>
+                        <p className="text-sm font-medium">Aucun employé trouvé</p>
                       </div>
                     </td>
                   </tr>

@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const formationController = require('../Controller/formationControlller');
 
-router.post('/formations', formationController.createFormation);
-router.get('/formations', formationController.getAllFormations);
-router.put('/formations/:id', formationController.updateFormation);
-router.delete('/formations/:id', formationController.deleteFormation);
+router.post('/createFormation', formationController.createFormation);
+router.get('/getAllFormations', formationController.getAllFormations);
+router.put('/updateFormation/:id', formationController.updateFormation);
+router.delete('/deleteFormation/:id', formationController.deleteFormation);
 
 module.exports = router;

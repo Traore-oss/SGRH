@@ -25,7 +25,6 @@ const Badge: React.FC<{ statut: string }> = ({ statut }) => (
 );
 
 // 🔹 Formulaire employé
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const EmployeeForm: React.FC<{ onSubmit: () => void; employee?: any; onClose: () => void }> = ({ onSubmit, employee, onClose }) => {
   const [form, setForm] = useState({
     id: employee?._id || "",
@@ -48,8 +47,11 @@ const EmployeeForm: React.FC<{ onSubmit: () => void; employee?: any; onClose: ()
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if(form.id) await axios.put(`http://localhost:5000/api/users/updateEmployee/${form.id}`, form);
-      else await axios.post("http://localhost:5000/api/users/creerEmployer", form);
+      if(form.id) {
+        await axios.put(`http://localhost:8000/api/Users/updateEmployee/${form.id}`, form);
+      } else {
+        await axios.post("http://localhost:8000/api/Users/creerEmployer", form);
+      }
       onSubmit();
       onClose();
     } catch(err: any) {
@@ -61,6 +63,7 @@ const EmployeeForm: React.FC<{ onSubmit: () => void; employee?: any; onClose: ()
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <input type="hidden" name="id" value={form.id} />
+      {/* Champs du formulaire */}
       <div>
         <label className="block mb-1 font-semibold">Nom</label>
         <input className="w-full border rounded px-2 py-1" name="nom" value={form.nom} onChange={handleChange} required />
@@ -126,15 +129,18 @@ export const Employees: React.FC = () => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/users/getAllEmployees");
+      const res = await axios.get("http://localhost:8000/api/Users/getAllEmployees");
       setEmployees(res.data.employees || []);
     } catch(err) { console.error(err); }
   };
 
   const toggleStatus = async (emp: any) => {
     try {
-      if(emp.statut==="Actif") await axios.patch(`http://localhost:5000/api/users/deactivateEmployee/${emp._id}`);
-      else await axios.patch(`http://localhost:5000/api/users/activateEmployee/${emp._id}`);
+      if(emp.statut==="Actif") {
+        await axios.patch(`http://localhost:8000/api/Users/deactivateEmployee/${emp._id}`);
+      } else {
+        await axios.patch(`http://localhost:8000/api/Users/activateEmployee/${emp._id}`);
+      }
       fetchEmployees();
     } catch(err) { console.error(err); }
   };
@@ -180,7 +186,7 @@ export const Employees: React.FC = () => {
                   <td className="px-4 py-2">{emp.email}</td>
                   <td className="px-4 py-2">{emp.poste || "-"}</td>
                   <td className="px-4 py-2">{emp.departement?.nom || "-"}</td>
-                  <td className="px-4 py-2">{emp.salaire || "-"}</td>
+                  <td className="px-4 py-2">{emp.salaire ? `${emp.salaire.toLocaleString()} GNF` : "-"}</td>
                   <td className="px-4 py-2">{emp.typeContrat || "-"}</td>
                   <td className="px-4 py-2"><Badge statut={emp.statut} /></td>
                   <td className="px-4 py-2">{emp.role}</td>

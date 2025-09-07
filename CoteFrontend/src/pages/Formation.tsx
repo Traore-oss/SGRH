@@ -17,7 +17,7 @@ export default function SuiviFormations() {
   });
 
   // API base URL - à adapter selon votre configuration
-  const API_BASE_URL = "http://localhost:3001/api/formation";
+  const API_BASE_URL = "http://localhost:8000/api/formation";
 
   // Charger les formations depuis l'API au démarrage
   useEffect(() => {

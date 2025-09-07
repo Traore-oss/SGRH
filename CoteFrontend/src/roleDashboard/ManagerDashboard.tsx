@@ -8,7 +8,8 @@ import {
   Target,
   Menu,
   LogOut,
-  Crown
+  Crown,
+  User as UserIcon
 } from 'lucide-react';
 import { Dashboard } from '../pages/Dashboard';
 import { Leaves } from '../pages/Conges';
@@ -18,7 +19,7 @@ import { AttendanceManager } from '../pages/Pointages';
 type ManagerView = 'dashboard' | 'team' | 'leaves' | 'attendance' | 'reports' | 'performance';
 
 interface ManagerDashboardProps {
-  user: { name: string; role: string };
+  user: { name: string; role: string; email: string };
   onLogout: () => void;
 }
 
@@ -34,6 +35,7 @@ const managerMenuItems = [
 export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ user, onLogout }) => {
   const [activeView, setActiveView] = useState<ManagerView>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const renderView = () => {
     switch (activeView) {
@@ -69,21 +71,21 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ user, onLogo
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar Manager */}
-      <div className={`fixed left-0 top-0 h-full bg-purple-600 shadow-lg border-r border-purple-700 z-40 transition-all duration-300 ${
+      <div className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${
         sidebarCollapsed ? 'w-16' : 'w-64'
       }`}>
         <div className="p-4">
           <div className="flex items-center space-x-3">
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 hover:bg-purple-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <Menu className="h-5 w-5 text-white" />
+              <Menu className="h-5 w-5 text-gray-700" />
             </button>
             {!sidebarCollapsed && (
               <div>
-                <h1 className="text-xl font-bold text-white">MANAGER</h1>
-                <p className="text-xs text-purple-200">Gestion d'équipe</p>
+                <h1 className="text-xl font-bold text-gray-800">MANAGER</h1>
+                <p className="text-xs text-gray-500">Gestion d'équipe</p>
               </div>
             )}
           </div>
@@ -98,10 +100,10 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ user, onLogo
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id as ManagerView)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-purple-700 transition-colors ${
+                className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${
                   isActive 
-                    ? 'bg-purple-700 text-white border-r-2 border-white' 
-                    : 'text-purple-100 hover:text-white'
+                    ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' 
+                    : 'text-gray-600 hover:bg-blue-50 hover:text-blue-800'
                 }`}
                 title={sidebarCollapsed ? item.label : ''}
               >
@@ -122,25 +124,47 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ user, onLogo
         <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-purple-600">
+              <h1 className="text-2xl font-bold text-blue-600">
                 {getViewTitle()}
               </h1>
               <p className="text-sm text-gray-600">
-                Manager: {user.name}
+                Bienvenue, {user.name}
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 bg-purple-50 px-3 py-1 rounded-full">
-                <Crown className="h-4 w-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-600">MANAGER</span>
+              <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full">
+                <Crown className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-600">MANAGER</span>
               </div>
-              <button
-                onClick={onLogout}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Déconnexion</span>
-              </button>
+              
+              {/* Profile utilisateur avec menu déroulant */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <UserIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                </button>
+                
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-800">{user.name}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                    <button
+                      onClick={onLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center space-x-2 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -161,7 +185,7 @@ const TeamManagement: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-purple-500">
+            <div className="p-2 rounded-lg bg-blue-500">
               <Users className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -205,8 +229,8 @@ const TeamManagement: React.FC = () => {
           ].map((member, index) => (
             <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-purple-600 font-semibold">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 font-semibold">
                     {member.name.split(' ').map(n => n[0]).join('')}
                   </span>
                 </div>
@@ -247,7 +271,7 @@ const PerformanceManagement: React.FC = () => {
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-2xl font-bold text-green-600">4.8/5</span>
-              <button className="bg-green-600 text-white px-3 py-1 rounded-lg text-sm">Voir détails</button>
+              <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors">Voir détails</button>
             </div>
           </div>
           <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
@@ -257,7 +281,7 @@ const PerformanceManagement: React.FC = () => {
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-2xl font-bold text-blue-600">4.5/5</span>
-              <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm">Compléter</button>
+              <button className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors">Compléter</button>
             </div>
           </div>
         </div>

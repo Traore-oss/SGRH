@@ -2,15 +2,17 @@ const express = require('express');
 const router = express.Router();
 const attendanceController = require('../Controller/attendanceController');
 
-// Créer ou récupérer des présences
+// Ajouter une présence
 router.post('/addAttendance', attendanceController.addAttendance);
-router.get('/getByDate/:date', attendanceController.getAttendances);
+
+// Récupérer les présences (passer la date en query)
+router.get('/getByDate', attendanceController.getAttendances);
 
 // Mettre à jour l'arrivée
-router.put('/updatePresence/:id', attendanceController.updatePresence);
+router.put('/updatePresence', attendanceController.updatePresence);
 
 // Marquer le départ
-router.put('/setDeparture/:id', attendanceController.setDeparture);
+router.put('/setDeparture', attendanceController.setDeparture);
 
 // Supprimer une présence
 router.delete('/deleteAttendance/:id', attendanceController.deleteAttendance);

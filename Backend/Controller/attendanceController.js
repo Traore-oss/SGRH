@@ -99,14 +99,31 @@ exports.setDeparture = async (req, res) => {
 // Récupérer les présences
 exports.getAttendances = async (req, res) => {
   try {
-    const { date } = req.params;
+    const { date } = req.query;
     let query = {};
     if (date) query.date = date;
 
     const records = await Attendance.find(query).sort({ date: -1 });
+    
+    // Récupérer les informations des employés pour chaque présence
     const result = await Promise.all(records.map(async rec => {
-      const employe = await User.findOne({ matricule: rec.matricule }, 'nom prenom matricule statut isActive');
-      return { ...rec.toObject(), ...employe.toObject() };
+      const employe = await User.findOne({ matricule: rec.matricule }, 'nom prenom _id matricule');
+      if (employe) {
+        return {
+          _id: rec._id,
+          employeeId: employe._id,
+          matricule: rec.matricule,
+          nom: employe.nom,
+          prenom: employe.prenom,
+          date: rec.date,
+          statut: rec.statut,
+          heureArrivee: rec.heureArrivee,
+          heureDepart: rec.heureDepart,
+          heuresTravaillees: rec.heuresTravaillees,
+          retard: rec.retard
+        };
+      }
+      return rec.toObject();
     }));
 
     res.json(result);

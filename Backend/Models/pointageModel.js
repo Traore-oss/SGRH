@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const pointageSchema = new mongoose.Schema({
-  matricule: { type: String, required: true }, // utiliser le matricule directement
+  matricule: { type: String, required: true },
   date: { type: String, required: true },
   statut: { type: String, enum: ['Présent', 'Retard', 'Absent'], default: 'Absent' },
   heureArrivee: { type: String, default: '-' },

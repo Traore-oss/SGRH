@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import axios from 'axios';
 
 interface User {
+  matricule: string;
+  departement: any;
   _id: string;
   email: string;
   nom: string;

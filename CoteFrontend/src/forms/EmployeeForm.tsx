@@ -1,9 +1,8 @@
-// /* eslint-disable @typescript-eslint/no-explicit-any */
-// /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useRef, useState } from 'react';
+// import React, { useEffect, useRef, useState } from 'react';
 import { Camera, X, Upload } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../api/axios.config';
+import { useEffect, useRef, useState } from 'react';
 
 interface Departement {
   _id: string;
@@ -17,7 +16,7 @@ interface EmployeeFormProps {
   onClose: () => void;
 }
 
-type RoleType = 'Employer' | 'Manager' | 'rh';
+type RoleType = 'Employer' | 'Manager' | 'rh' | 'Admin';
 type StatutType = 'Actif' | 'Inactif' | 'Suspendu';
 type ContratType = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
 
@@ -393,13 +392,13 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
       {/* Adresse */}
       <div>
         <input 
-          name="adresse" 
-          value={formData.adresse} 
-          onChange={handleChange} 
-          placeholder="Adresse" 
-          className={`w-full border rounded-lg p-3 ${errors.adresse ? 'border-red-500' : 'border-gray-300'}`}
-        />
-        {errors.adresse && <p className="text-red-500 text-sm mt-1">{errors.adresse}</p>}
+            name="adresse" 
+            value={formData.adresse} 
+            onChange={handleChange} 
+            placeholder="Adresse" 
+            className={`w-full border rounded-lg p-3 ${errors.adresse ? 'border-red-500' : 'border-gray-300'}`}
+          />
+          {errors.adresse && <p className="text-red-500 text-sm mt-1">{errors.adresse}</p>}
       </div>
 
       {/* Poste / Département */}
@@ -482,6 +481,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
           <option value="Employer">Employé</option>
           <option value="Manager">Manager</option>
           <option value="rh">RH</option>
+          <option value="Admin">Admin</option>
         </select>
         {errors.roleType && <p className="text-red-500 text-sm mt-1">{errors.roleType}</p>}
       </div>

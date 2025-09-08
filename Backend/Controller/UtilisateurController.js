@@ -73,19 +73,27 @@ exports.creerEmployer = async (req, res) => {
   try {
     const {
       email, nom, prenom, genre, date_naissance,
-      telephone, adresse, poste, code_departement,
+      telephone, adresse, poste, departement,
       salaire, typeContrat, statut, roleType
     } = req.body;
 
-    if (!email || !nom || !prenom || !genre || !date_naissance || !roleType)
-      return res.status(400).json({ error: "Champs obligatoires manquants." });
+    // Validation des champs obligatoires
+    const requiredFields = ['email', 'nom', 'prenom', 'genre', 'date_naissance', 'roleType'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        error: "Champs obligatoires manquants.",
+        missingFields 
+      });
+    }
 
     if (await Utilisateur.findOne({ email })) return res.status(409).json({ error: "Email déjà utilisé." });
     if (telephone && await Utilisateur.findOne({ telephone })) return res.status(409).json({ error: "Téléphone déjà utilisé." });
 
     let departementObj = null;
-    if (roleType !== "Admin" && code_departement) {
-      departementObj = await Departement.findOne({ code_departement });
+    if (roleType !== "Admin" && roleType !== "rh" && departement) {
+      departementObj = await Departement.findById(departement);
       if (!departementObj) return res.status(404).json({ error: "Département introuvable." });
     }
 
@@ -97,7 +105,7 @@ exports.creerEmployer = async (req, res) => {
       nom,
       prenom,
       genre,
-      role: ["Manager", "rh", "Admin"].includes(roleType) ? roleType : "Employer",
+      role: roleType,
       email,
       date_naissance,
       telephone,
@@ -142,7 +150,7 @@ exports.creerEmployer = async (req, res) => {
 exports.getAllEmployees = async (req, res) => {
   try {
     const employees = await Utilisateur.find({ role: { $in: ["Employer", "Manager","rh","Admin"] } })
-      .select("nom prenom email matricule poste departement salaire typeContrat statut isActive role photo")
+      .select("nom prenom email matricule poste departement salaire typeContrat statut isActive role photo date_naissance telephone adresse ville codePostal numeroCNSS numeroCIN banque numeroCompte personneContact telephoneUrgence statutMarital joursCongesRestants derniereEvaluation notes")
       .populate("departement", "nom code_departement");
     res.status(200).json(employees);
   } catch (err) {
@@ -160,16 +168,14 @@ exports.updateEmployee = async (req, res) => {
     const employee = await Utilisateur.findById(id);
     if (!employee) return res.status(404).json({ error: "Utilisateur non trouvé" });
 
-    if (updateData.code_departement) {
-      const departementObj = await Departement.findById(updateData.code_departement);
+    if (updateData.departement) {
+      const departementObj = await Departement.findById(updateData.departement);
       if (!departementObj) return res.status(404).json({ error: "Département introuvable" });
       employee.departement = departementObj._id;
-      delete updateData.code_departement;
     }
 
     if (updateData.roleType) {
-      employee.role = ["Manager", "rh","Admin"].includes(updateData.roleType) ? updateData.roleType : "Employer";
-      delete updateData.roleType;
+      employee.role = updateData.roleType;
     }
 
     if (updateData.salaire && typeof updateData.salaire === "string") {
@@ -206,7 +212,7 @@ exports.deactivateEmployee = async (req, res) => {
     if (!employee) return res.status(404).json({ error: "Utilisateur non trouvé" });
     employee.isActive = false;
     await employee.save();
-    res.status(200).json(employee);
+    res.status(200).json(employee);   
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

@@ -29,7 +29,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Modal } from '../commons/Modal';
 import { EmployeeForm } from '../forms/EmployeeForm';
-import { InfoItem } from '../commons/InfoItem';
+// import { InfoItem } from '../commons/InfoItem';
 
 type HRView = 'dashboard' | 'employees' | 'leaves' | 'attendance' | 'departments' | 'reports' | 'recruitment';
 

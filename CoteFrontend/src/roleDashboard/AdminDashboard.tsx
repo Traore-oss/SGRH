@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// import React, { useEffect, useState } from 'react';
 import {
   Users, Building2, FileText, Settings, BarChart3, Calendar,
-  Clock, Menu, LogOut, Edit, Eye, Filter, Search, X, Plus, User, Bell, ChevronDown
+  Clock, Menu, LogOut, Edit, Eye, Filter, Search, X, Plus, User, Bell, ChevronDown, Lock
 } from 'lucide-react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
@@ -17,6 +18,7 @@ import { Reports } from '../pages/Rapport';
 import Salaire from "../pages/Salaire";
 import SuiviFormations from "../pages/Formation";
 import { EmployeeForm } from '../forms/EmployeeForm';
+import { type Key, type ReactElement, type JSXElementConstructor, type ReactNode, type ReactPortal, useState, useEffect } from 'react';
 
 // ==================== Modal amélioré ====================
 interface ModalProps {
@@ -115,7 +117,7 @@ const calculateSeniority = (hireDate: string) => {
 };
 
 // ==================== UserManagement amélioré ====================
-const UserManagement: React.FC = () => {
+export const UserManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedUser, setSelectedUser] = useState<Employee | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -127,28 +129,33 @@ const UserManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
   const fetchEmployees = async () => {
     setLoading(true);
     try {
+      console.log("Début du chargement des employés...");
       const data = await getEmployees();
+      console.log("Employés chargés:", data);
       setEmployees(data);
-      toast.success('Liste des employés mise à jour');
     } catch (error) {
-      console.error(error);
+      console.error("Erreur lors du chargement des employés:", error);
       toast.error('Erreur lors du chargement des employés');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchEmployees(); }, []);
+  useEffect(() => { 
+    fetchEmployees(); 
+  }, []);
 
   const toggleIsActive = async (userId: string, isActive: boolean, userName: string) => {
     try {
-      const url = `/api/Users/${isActive ? 'deactivateEmployee' : 'activateEmployee'}/${userId}`;
+      const url = `${API_BASE}/api/Users/${isActive ? 'deactivateEmployee' : 'activateEmployee'}/${userId}`;
       await axios.patch(url, {}, { withCredentials: true });
       setEmployees(prev => prev.map(u => u._id === userId ? { ...u, isActive: !isActive } : u));
-      
+
       toast.success(`Utilisateur ${userName} ${isActive ? 'désactivé' : 'activé'} avec succès`);
     } catch (err) {
       console.error(err);
@@ -394,7 +401,7 @@ const UserManagement: React.FC = () => {
                           onClick={() => toggleIsActive(u._id, !!u.isActive, `${u.prenom} ${u.nom}`)}
                           title={u.isActive ? 'Désactiver' : 'Activer'}
                         >
-                          {u.isActive ? 'Désactiver' : 'Activer'}
+                          {u.isActive ? <Lock className="h-4 w-4" /> : 'Activer'}
                         </button>
                       </div>
                     </td>
@@ -489,8 +496,8 @@ const UserManagement: React.FC = () => {
                     <InfoItem label="Téléphone" value={selectedUser.telephone} />
                     <InfoItem label="Date de naissance" value={selectedUser.date_naissance ? new Date(selectedUser.date_naissance).toLocaleDateString('fr-FR') : '-'} />
                     <InfoItem label="Adresse" value={selectedUser.adresse} />
-                    {/* <InfoItem label="Ville" value={selectedUser.ville} />
-                    <InfoItem label="Code postal" value={selectedUser.codePostal} /> */}
+                    <InfoItem label="Ville" value={selectedUser.ville} />
+                    <InfoItem label="Code postal" value={selectedUser.codePostal} />
                   </div>
                 </div>
 
@@ -503,12 +510,12 @@ const UserManagement: React.FC = () => {
                     <InfoItem label="Type de contrat" value={selectedUser.typeContrat} />
                     <InfoItem label="Date d'embauche" value={selectedUser.date_embauche ? new Date(selectedUser.date_embauche).toLocaleDateString('fr-FR') : '-'} />
                     <InfoItem label="Salaire" value={selectedUser.salaire ? formatCurrency(Number(selectedUser.salaire)) : '-'} />
-                    {/* <InfoItem label="Statut marital" value={selectedUser.statutMarital} /> */}
+                    <InfoItem label="Statut marital" value={selectedUser.statutMarital} />
                   </div>
                 </div>
 
                 {/* Informations complémentaires */}
-                {/* <div className="space-y-4">
+                <div className="space-y-4">
                   <h4 className="text-lg font-medium text-gray-800 border-b pb-2">Informations Complémentaires</h4>
                   <div className="space-y-3">
                     <InfoItem label="Numéro CNSS" value={selectedUser.numeroCNSS} />
@@ -518,16 +525,16 @@ const UserManagement: React.FC = () => {
                     <InfoItem label="Personne à contacter" value={selectedUser.personneContact} />
                     <InfoItem label="Téléphone urgence" value={selectedUser.telephoneUrgence} />
                   </div>
-                </div> */}
+                </div>
 
                 {/* Statistiques et performances */}
                 <div className="space-y-4">
                   <h4 className="text-lg font-medium text-gray-800 border-b pb-2">Statistiques</h4>
                   <div className="space-y-3">
-                    {/* <InfoItem label="Jours de congé restants" value={selectedUser.joursCongesRestants || '0'} /> */}
+                    <InfoItem label="Jours de congé restants" value={selectedUser.joursCongesRestants || '0'} />
                     <InfoItem label="Ancienneté" value={selectedUser.date_embauche ? calculateSeniority(selectedUser.date_embauche) : '-'} />
-                    {/* <InfoItem label="Dernière évaluation" value={selectedUser.derniereEvaluation ? new Date(selectedUser.derniereEvaluation).toLocaleDateString('fr-FR') : 'Non évalué'} />
-                    <InfoItem label="Notes" value={selectedUser.notes || 'Aucune note'} isFullWidth /> */}
+                    <InfoItem label="Dernière évaluation" value={selectedUser.derniereEvaluation ? new Date(selectedUser.derniereEvaluation).toLocaleDateString('fr-FR') : 'Non évalué'} />
+                    <InfoItem label="Notes" value={selectedUser.notes || 'Aucune note'} isFullWidth />
                   </div>
                 </div>
               </div>
@@ -558,7 +565,6 @@ const UserManagement: React.FC = () => {
     </div>
   );
 };
-
 // ==================== AdminDashboard amélioré ====================
 type AdminView = 'dashboard' | 'leaves' | 'attendance' | 'departments' | 'reports' | 'settings' | 'users' | 'Performance' |'SuiviFormations' | 'Salaire';
 const adminMenuItems = [
@@ -580,6 +586,7 @@ export const AdminDashboard: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   const handleLogout = async () => {
     try {
@@ -588,6 +595,25 @@ export const AdminDashboard: React.FC = () => {
       console.error('Erreur lors de la déconnexion:', error);
     }
   };
+
+  // Simuler la récupération des notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        // Simulation de données de notification
+        const mockNotifications = [
+          { id: 1, type: 'leave', message: 'Nouvelle demande de congé', timestamp: new Date(), read: false },
+          { id: 2, type: 'attendance', message: 'Pointage en retard signalé', timestamp: new Date(), read: false },
+          { id: 3, type: 'salary', message: 'Paiement de salaire effectué', timestamp: new Date(), read: true },
+        ];
+        setNotifications(mockNotifications);
+      } catch (error) {
+        console.error('Erreur lors du chargement des notifications:', error);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const renderView = () => {
     switch (activeView) {
@@ -639,13 +665,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Sidebar pour desktop */}
       <div className={`hidden md:flex fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <div className="flex flex-col h-full">
-          {/* <img 
-                    src="../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" 
-                    alt="Logo SGRH" 
-                    className="w-28 mx-auto"
-                  />  */}
           <div className="p-4 flex items-center space-x-3">
-            
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -654,7 +674,6 @@ export const AdminDashboard: React.FC = () => {
             </button>
             {!sidebarCollapsed && (
               <div>
-              
                 <p className="text-xs text-gray-500">ADMIN <br /> Contrôle total</p>
               </div>
             )}
@@ -749,9 +768,51 @@ export const AdminDashboard: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <Bell className="h-5 w-5" />
-            </button>
+            <div className="relative">
+              <button 
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative"
+                onClick={() => {
+                  // Marquer les notifications comme lues
+                  setNotifications(notifications.map(n => ({ ...n, read: true })));
+                }}
+              >
+                <Bell className="h-5 w-5" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Dropdown des notifications */}
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 hidden group-hover:block">
+                <div className="px-4 py-2 border-b border-gray-200">
+                  <h3 className="font-medium text-gray-800">Notifications</h3>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500">Aucune notification</div>
+                  ) : (
+                    notifications.map((notification: { id: Key | null | undefined; read: any; message: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; timestamp: string | number | Date; }) => (
+                      <div 
+                        key={notification.id} 
+                        className={`px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
+                      >
+                        <div className="text-sm text-gray-800">{notification.message}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {new Date(notification.timestamp).toLocaleString('fr-FR')}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="px-4 py-2 border-t border-gray-200">
+                  <button className="text-sm text-blue-600 hover:text-blue-800">
+                    Voir toutes les notifications
+                  </button>
+                </div>
+              </div>
+            </div>
             
             <div className="relative">
               <button 
@@ -776,6 +837,16 @@ export const AdminDashboard: React.FC = () => {
               
               {showUserDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="px-4 py-2 border-b border-gray-200">
+                    <div className="text-sm font-medium text-gray-900">{user?.prenom} {user?.nom}</div>
+                    <div className="text-xs text-gray-500 capitalize">{user?.role}</div>
+                  </div>
+                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Mon profil
+                  </button>
+                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    Historique des activités
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"

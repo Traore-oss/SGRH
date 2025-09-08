@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require("express"); // ← il faut remettre ça !
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
@@ -45,6 +45,7 @@ router.put(
   "/updateEmployee/:id",
   authController.requireAuth,
   authController.requireAdmin,
+  upload.single("photo"),
   utilisateurController.updateEmployee
 );
 

@@ -1,5 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
 import React from 'react';
-import type { Icon as LucideIcon } from 'lucide-react';
 
 interface Column {
   key: string;

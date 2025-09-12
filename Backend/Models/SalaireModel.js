@@ -1,6 +1,16 @@
 const mongoose = require('mongoose');
 
 const SalaireSchema = new mongoose.Schema({
+    employe: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+      required: true
+    },
+    rh: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+      required: true
+    },
   nom: { type: String, required: true },
   salaireJournalier: { type: Number, required: true },
   joursTravailles: { type: Number, required: true },

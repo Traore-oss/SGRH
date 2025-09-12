@@ -1,3 +1,4 @@
+// services/employeeService.ts
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export interface Departement {
@@ -7,6 +8,7 @@ export interface Departement {
 }
 
 export interface Employee {
+  employer: any;
   notes?: string;
   derniereEvaluation?: string;
   joursCongesRestants?: string;
@@ -65,13 +67,14 @@ export interface EmployeeFormData {
   telephoneUrgence?: string;
 }
 
+// Récupérer tous les employés
 export const getEmployees = async (): Promise<Employee[]> => {
   try {
-    console.log("Fetching employees from:", `${API_BASE}/api/Users/getAllEmployees`);
+    console.log("Fetching employees from:", `${API_BASE}/api/Users/`);
     
-    const response = await fetch(`${API_BASE}/api/Users/getAllEmployees`, {
+    const response = await fetch(`${API_BASE}/api/Users/`, {
       credentials: "include",
-    });
+    }); 
 
     console.log("Response status:", response.status);
     
@@ -110,109 +113,71 @@ export const getEmployees = async (): Promise<Employee[]> => {
   }
 };
 
-export const createEmployee = async (
-  formData: FormData
-): Promise<Employee> => {
+// Activer / désactiver un employé
+
+interface EmployeeType {
+  _id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  isActive: boolean;
+  // ajoute d'autres champs si nécessaire
+}
+
+// 🔹 Activer / désactiver
+export const toggleEmployeeActive = async (id: string, isActive: boolean) => {
+  const res = await fetch(`${API_BASE}/Auth/toggleActive/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ isActive }),
+  });
+  if (!res.ok) throw new Error("Erreur toggle employé");
+  return await res.json();
+};
+// Récupérer un employé par ID
+export const getEmployeeById = async (id: string): Promise<Employee> => {
   try {
-    const response = await fetch(`${API_BASE}/api/Users/creerEmployer`, {
+    const res = await fetch(`${API_BASE}/Users/${id}`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Employé non trouvé");
+    return await res.json();
+  } catch (err) {
+    console.error("Erreur getEmployeeById:", err);
+    throw err;
+  }
+};
+
+// Créer un employé
+export const createEmployee = async (formData: FormData): Promise<Employee> => {
+  try {
+    const res = await fetch(`${API_BASE}/Users/`, {
       method: "POST",
       credentials: "include",
       body: formData,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-
-      if (errorData.missingFields) {
-        throw new Error(
-          `Champs obligatoires manquants: ${errorData.missingFields.join(", ")}`
-        );
-      }
-
-      throw new Error(
-        errorData.error || "Erreur lors de la création de l'employé"
-      );
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error creating employee:", error);
-    throw new Error(error instanceof Error ? error.message : "Erreur de création");
+    if (!res.ok) throw new Error("Erreur lors de la création de l'employé");
+    return await res.json();
+  } catch (err) {
+    console.error("Erreur createEmployee:", err);
+    throw err;
   }
 };
 
-export const updateEmployee = async (
-  id: string,
-  formData: FormData
-): Promise<Employee> => {
+// Mettre à jour un employé
+export const updateEmployee = async (id: string, formData: FormData): Promise<Employee> => {
   try {
-    const response = await fetch(`${API_BASE}/api/Users/updateEmployee/${id}`, {
+    const res = await fetch(`${API_BASE}/Users/${id}`, {
       method: "PUT",
       credentials: "include",
       body: formData,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || "Erreur lors de la mise à jour de l'employé"
-      );
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error updating employee:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Erreur de mise à jour"
-    );
-  }
-};
-
-export const activateEmployee = async (id: string): Promise<void> => {
-  try {
-    const response = await fetch(
-      `${API_BASE}/api/Users/activateEmployee/${id}`,
-      {
-        method: "PATCH",
-        credentials: "include",
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || "Erreur lors de l'activation de l'employé"
-      );
-    }
-  } catch (error) {
-    console.error("Error activating employee:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Erreur d'activation"
-    );
-  }
-};
-
-export const deactivateEmployee = async (id: string): Promise<void> => {
-  try {
-    const response = await fetch(
-      `${API_BASE}/api/Users/deactivateEmployee/${id}`,
-      {
-        method: "PATCH",
-        credentials: "include",
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || "Erreur lors de la désactivation de l'employé"
-      );
-    }
-  } catch (error) {
-    console.error("Error deactivating employee:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Erreur de désactivation"
-    );
+    if (!res.ok) throw new Error("Erreur lors de la mise à jour de l'employé");
+    return await res.json();
+  } catch (err) {
+    console.error("Erreur updateEmployee:", err);
+    throw err;
   }
 };
 

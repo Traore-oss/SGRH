@@ -1,220 +1,168 @@
 const Utilisateur = require("../Models/usersModel");
-const Departement = require("../Models/departementModel");
-const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
-// 🔹 Transporteur email
+// === Transporteur email ===
 const transporter = nodemailer.createTransport({
   service: "gmail",
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+  auth: { 
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS 
+  }
 });
 
-// 🔹 Générer matricule unique
+// === Générer matricule unique ===
 async function generateMatricule() {
   let matricule;
   do {
     matricule = "EMP" + Math.floor(1000 + Math.random() * 9000);
-  } while (await Utilisateur.findOne({ matricule }));
+  } while (await Utilisateur.findOne({ "employer.matricule": matricule }));
   return matricule;
 }
 
-// 🔹 Créer le premier admin
-exports.createFirstAdmin = async (req, res) => {
-  try {
-    const adminExists = await Utilisateur.findOne({ role: "Admin" });
-    if (adminExists)
-      return res.status(403).json({ error: "Un administrateur existe déjà" });
-
-    const { email, nom, prenom, genre } = req.body;
-    if (!email || !nom || !prenom || !genre)
-      return res.status(400).json({ error: "Tous les champs sont requis" });
-
-    const plainPassword = crypto.randomBytes(4).toString("hex");
-
-    const admin = await Utilisateur.create({
-      email,
-      nom,
-      prenom,
-      genre,
-      password: plainPassword,
-      role: "Admin",
-      isActive: true,
-      date_naissance: new Date("1990-01-01"),
-      telephone: "0000000000",
-      adresse: "Non spécifiée"
-    });
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Votre compte Admin SGRH",
-      html: `<h3>Bonjour ${prenom} ${nom}</h3>
-             <p>Votre compte administrateur a été créé avec succès.</p>
-             <ul>
-               <li>Email: ${email}</li>
-               <li>Matricule: ${admin.matricule}</li>
-               <li>Mot de passe: ${plainPassword}</li>
-               <li>Rôle: Admin</li>
-             </ul>`
-    });
-
-    res.status(201).json({
-      message: "Administrateur créé et email envoyé avec succès",
-      matricule: admin.matricule
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+// === Générer mot de passe aléatoire (employés) ===
+function generateRandomPassword(length = 8) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@!$%*?";
+  let pwd = "";
+  for (let i = 0; i < length; i++) {
+    pwd += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-};
+  return pwd;
+}
 
-// 🔹 Créer un employé
-exports.creerEmployer = async (req, res) => {
+// === CREATE USER ===
+exports.createUser = async (req, res) => {
   try {
-    const {
-      email, nom, prenom, genre, date_naissance,
-      telephone, adresse, poste, departement,
-      salaire, typeContrat, statut, roleType
-    } = req.body;
+    const { nom, prenom, email, role } = req.body;
 
-    // Validation des champs obligatoires
-    const requiredFields = ['email', 'nom', 'prenom', 'genre', 'date_naissance', 'roleType'];
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    
-    if (missingFields.length > 0) {
-      return res.status(400).json({ 
-        error: "Champs obligatoires manquants.",
-        missingFields 
-      });
+    if (!nom || !prenom || !email || !role) {
+      return res.status(400).json({ message: "Champs requis manquants." });
     }
 
-    if (await Utilisateur.findOne({ email })) return res.status(409).json({ error: "Email déjà utilisé." });
-    if (telephone && await Utilisateur.findOne({ telephone })) return res.status(409).json({ error: "Téléphone déjà utilisé." });
-
-    let departementObj = null;
-    if (roleType !== "Admin" && roleType !== "rh" && departement) {
-      departementObj = await Departement.findById(departement);
-      if (!departementObj) return res.status(404).json({ error: "Département introuvable." });
+    // Vérifier email unique
+    if (await Utilisateur.findOne({ email })) {
+      return res.status(400).json({ message: "Cet email est déjà utilisé." });
     }
 
-    const finalMatricule = await generateMatricule();
-    const plainPassword = crypto.randomBytes(4).toString("hex");
-    const numericSalary = typeof salaire === "string" ? parseInt(salaire.replace(/\D/g, "")) || 0 : salaire || 0;
+    let plainPassword = req.body.password;
 
-    const newUser = await Utilisateur.create({
-      nom,
-      prenom,
-      genre,
-      role: roleType,
-      email,
-      date_naissance,
-      telephone,
-      adresse,
-      poste,
-      departement: departementObj ? departementObj._id : null,
-      matricule: finalMatricule,
-      salaire: numericSalary,
-      typeContrat: typeContrat || "CDI",
-      statut: statut || "Actif",
-      password: plainPassword,
-      photo: req.file ? req.file.filename : null,
-      isActive: true
-    });
+if (role === "Employe") {
+    if (!req.user) {
+        return res.status(401).json({ message: "Vous devez être connecté en RH pour créer un employé" });
+    }
+    req.body.employer = req.body.employer || {};
+    req.body.employer.matricule = await generateMatricule();
+    plainPassword = generateRandomPassword();
+    req.body.password = plainPassword;
+    req.body.employer.createdByrh = req.user._id; // 🔑 RH connecté
+    delete req.body.rh;
 
-    // 🔹 Envoi email avec mot de passe
-    if (email) {
+
+    } else if (role === "RH") {
+      req.body.rh = req.body.rh || {};
+      delete req.body.employer;
+    } else if (role === "Admin") {
+      delete req.body.rh;
+      delete req.body.employer;
+    }
+
+    // Création utilisateur
+    const newUser = new Utilisateur(req.body);
+    await newUser.save();
+
+    // Envoi email si employé
+    try {
+      let htmlContent = `
+        <h3>Bonjour ${prenom} ${nom}</h3>
+        <p>Votre compte a été créé.</p>
+        <ul>
+          <li>Email: ${email}</li>
+          <li>Rôle: ${role}</li>
+      `;
+
+      if (role === "Employe") {
+        htmlContent += `
+          <li>Matricule: ${newUser.employer.matricule}</li>
+          <li>Mot de passe: ${plainPassword}</li>
+        `;
+      }
+
+      htmlContent += `</ul><p>Cordialement,<br/>L'équipe RH</p>`;
+
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
-        subject: "Votre compte RH",
-        html: `<h3>Bonjour ${prenom} ${nom}</h3>
-               <p>Votre compte a été créé.</p>
-               <ul>
-                 <li>Email: ${email}</li>
-                 <li>Matricule: ${finalMatricule}</li>
-                 <li>Mot de passe: ${plainPassword}</li>
-                 <li>Rôle: ${roleType}</li>
-               </ul>`
+        subject: "Création de votre compte RH",
+        html: htmlContent
       });
+    } catch (mailErr) {
+      console.warn("⚠️ Erreur envoi mail:", mailErr.message);
     }
 
-    res.status(201).json(newUser);
-
+    res.status(201).json({ message: "Utilisateur créé ✅", utilisateur: newUser });
   } catch (err) {
-    console.error(err);
+    console.error("Erreur serveur:", err);
     res.status(500).json({ error: "Erreur serveur." });
   }
 };
 
-// 🔹 Récupérer tous les employés
-exports.getAllEmployees = async (req, res) => {
+// === READ ALL USERS ===
+exports.getUsers = async (req, res) => {
   try {
-    const employees = await Utilisateur.find({ role: { $in: ["Employer", "Manager","rh","Admin"] } })
-      .select("nom prenom email matricule poste departement salaire typeContrat statut isActive role photo date_naissance telephone adresse ville codePostal numeroCNSS numeroCIN banque numeroCompte personneContact telephoneUrgence statutMarital joursCongesRestants derniereEvaluation notes")
-      .populate("departement", "nom code_departement");
-    res.status(200).json(employees);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    let users;
+
+    if (req.user.role === "Admin") {
+      // Admin voit tous les utilisateurs
+      users = await Utilisateur.find();
+    } else if (req.user.role === "RH") {
+      // RH voit uniquement les employés qu'il a créés
+      users = await Utilisateur.find({ "employer.createdByrh": req.user._id });
+    } else {
+      // Employé → uniquement lui-même
+      users = await Utilisateur.find({ _id: req.user._id });
+    }
+
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération des utilisateurs", error });
   }
 };
 
-// 🔹 Modifier
-exports.updateEmployee = async (req, res) => {
+// === READ ONE USER ===
+exports.getUserById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    const employee = await Utilisateur.findById(id);
-    if (!employee) return res.status(404).json({ error: "Utilisateur non trouvé" });
-
-    if (updateData.departement) {
-      const departementObj = await Departement.findById(updateData.departement);
-      if (!departementObj) return res.status(404).json({ error: "Département introuvable" });
-      employee.departement = departementObj._id;
-    }
-
-    if (updateData.roleType) {
-      employee.role = updateData.roleType;
-    }
-
-    if (updateData.salaire && typeof updateData.salaire === "string") {
-      updateData.salaire = parseInt(updateData.salaire.replace(/\D/g, ""));
-    }
-
-    Object.assign(employee, updateData);
-    await employee.save();
-    res.status(200).json(employee);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    const user = await Utilisateur.findById(req.params.id).populate("employer.departement");
+    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé" });
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur récupération utilisateur", error: error.message });
   }
 };
 
-// 🔹 Activer / Désactiver
-exports.activateEmployee = async (req, res) => {
+// === UPDATE USER ===
+exports.updateUser = async (req, res) => {
   try {
-    const employee = await Utilisateur.findById(req.params.id);
-    if (!employee) return res.status(404).json({ error: "Utilisateur non trouvé" });
-    employee.isActive = true;
-    await employee.save();
-    res.status(200).json(employee);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-};
+    const { role, ...rest } = req.body;
 
-exports.deactivateEmployee = async (req, res) => {
-  try {
-    const employee = await Utilisateur.findById(req.params.id);
-    if (!employee) return res.status(404).json({ error: "Utilisateur non trouvé" });
-    employee.isActive = false;
-    await employee.save();
-    res.status(200).json(employee);   
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    // Nettoyage selon rôle
+    if (role === "Admin") {
+      delete rest.rh;
+      delete rest.employer;
+    } else if (role === "RH") {
+      delete rest.employer;
+    } else if (role === "Employe") {
+      delete rest.rh;
+    }
+
+    const updatedUser = await Utilisateur.findByIdAndUpdate(
+      req.params.id,
+      { $set: { ...rest, role: role || rest.role } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) return res.status(404).json({ message: "Utilisateur non trouvé" });
+
+    res.status(200).json({ message: "Utilisateur mis à jour ✅", updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur mise à jour", error: error.message });
   }
 };

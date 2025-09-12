@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+// /* eslint-disable react-refresh/only-export-components */ 
 import React, { useState, useEffect } from "react";
 import { Pie, Bar } from "react-chartjs-2";
 import {
@@ -54,7 +56,7 @@ interface AttendanceRecord {
 // 🔹 Récupérer tous les employés
 export const getEmployees = async (): Promise<Employee[]> => {
   try {
-    const res = await fetch(`${API_BASE}/api/Users/getAllEmployees`, {
+    const res = await fetch(`${API_BASE}/api/Users/`, {
       credentials: 'include',
     });
     if (!res.ok) throw new Error('Erreur lors de la récupération des employés');
@@ -123,9 +125,7 @@ const setDeparture = async (matricule: string, date: string): Promise<Attendance
   try {
     const res = await fetch(`${API_BASE}/api/pointages/setDeparture`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ matricule, date }),
     });
@@ -135,6 +135,20 @@ const setDeparture = async (matricule: string, date: string): Promise<Attendance
   } catch (err) {
     console.error(err);
     return null;
+  }
+};
+
+const deleteAttendance = async (id: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/pointages/deleteAttendance/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Erreur lors de la suppression de la présence');
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
   }
 };
 
@@ -233,7 +247,7 @@ export const AttendanceManager: React.FC = () => {
   };
 
   // Marquer départ
-  const setDeparture = async (record: AttendanceRecord) => {
+  const handleSetDeparture = async (record: AttendanceRecord) => {
     if (record.statut === "Absent") {
       showNotification("error", "Veuillez cocher la case d'arrivée avant de marquer le départ !");
       return;
@@ -254,6 +268,21 @@ export const AttendanceManager: React.FC = () => {
       }
     } catch (error) {
       showNotification("error", "Erreur lors de l'enregistrement du départ");
+    }
+  };
+
+  // Supprimer une présence
+  const handleDeleteAttendance = async (id: string) => {
+    try {
+      const success = await deleteAttendance(id);
+      if (success) {
+        setAttendance(prev => prev.filter(record => record._id !== id));
+        showNotification("success", "Présence supprimée avec succès");
+      } else {
+        showNotification("error", "Erreur lors de la suppression de la présence");
+      }
+    } catch (error) {
+      showNotification("error", "Erreur lors de la suppression de la présence");
     }
   };
 
@@ -421,7 +450,7 @@ export const AttendanceManager: React.FC = () => {
             <div className="flex items-center">
               <div className="rounded-full bg-yellow-100 p-2 sm:p-3 mr-3 sm:mr-4">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 01118 0z"></path>
                 </svg>
               </div>
               <div>
@@ -576,7 +605,7 @@ export const AttendanceManager: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
                         <button 
-                          onClick={() => setDeparture(r)} 
+                          onClick={() => handleSetDeparture(r)} 
                           disabled={r.statut === "Absent"}
                           className={`px-2 py-1 sm:px-3 sm:py-1 rounded-md text-xs sm:text-sm font-medium flex items-center
                             ${r.statut === "Absent" ? 

@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import axios from 'axios';
+/* eslint-disable react-refresh/only-export-components */
+
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import * as authService from "../service/AuthService"; // <-- ton fichier service
 
 interface User {
-  matricule: string;
-  departement: any;
-  _id: string;
-  email: string;
+  id: string;
   nom: string;
   prenom: string;
-  role: string;
+  email: string;
+  role: "Admin" | "RH" | "Employe";
   isActive: boolean;
+  departement?: string;
+  entreprise?: string;
 }
 
 interface Activity {
@@ -22,21 +24,19 @@ interface Activity {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
+  toggleActiveUser: (userId: string) => Promise<User>;
   loading: boolean;
   activityHistory: Activity[];
-  addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => void;
+  addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
@@ -50,106 +50,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
 
   useEffect(() => {
-    checkAuth();
+    // Vérifier l'utilisateur connecté au chargement
+    const checkUser = async () => {
+      try {
+        const res = await authService.checkAuth();
+        setUser(res);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkUser();
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const response = await axios.get('http://localhost:8000/api/auth/check', {
-        withCredentials: true,
-      });
-      setUser(response.data.user);
-      
-      // Charger l'historique des activités depuis le localStorage
-      if (response.data.user) {
-        const savedActivities = localStorage.getItem(`userActivities_${response.data.user._id}`);
-        if (savedActivities) {
-          setActivityHistory(JSON.parse(savedActivities));
-        }
-      }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-
   const login = async (email: string, password: string) => {
-    try {
-      const response = await axios.post('http://localhost:8000/api/auth/signIn', {
-        email,
-        password,
-      }, {
-        withCredentials: true,
-      });
-      
-      setUser(response.data.user);
-      
-      // Ajouter une activité de connexion
-      addActivity({
-        type: 'auth',
-        description: 'Connexion au système',
-        userId: response.data.user._id
-      });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Erreur de connexion');
-    }
+    const loggedUser = await authService.login(email, password);
+    setUser(loggedUser);
+
+    addActivity({
+      type: "auth",
+      description: "Connexion au système",
+      userId: loggedUser.id,
+    });
+
+    return loggedUser;
   };
 
   const logout = async () => {
-    try {
-      // Ajouter une activité de déconnexion
-      if (user) {
-        addActivity({
-          type: 'auth',
-          description: 'Déconnexion du système',
-          userId: user._id
-        });
-      }
-      
-      await axios.post('http://localhost:8000/api/auth/logout', {}, {
-        withCredentials: true,
+    await authService.logout();
+    if (user) {
+      addActivity({
+        type: "auth",
+        description: "Déconnexion du système",
+        userId: user.id,
       });
-      setUser(null);
-      setActivityHistory([]);
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
     }
+    setUser(null);
+    setActivityHistory([]);
   };
 
-  const addActivity = (activity: Omit<Activity, 'id' | 'timestamp'>) => {
+  const toggleActiveUser = async (userId: string) => {
+    const updatedUser = await authService.toggleActiveUser(userId);
+
+    addActivity({
+      type: "user",
+      description: `Utilisateur ${updatedUser.nom} ${updatedUser.prenom} ${
+        updatedUser.isActive ? "activé" : "désactivé"
+      }`,
+      userId: updatedUser.id,
+    });
+
+    // Met à jour l'utilisateur courant si c'est lui-même
+    if (user?.id === updatedUser.id) setUser(updatedUser);
+
+    return updatedUser;
+  };
+
+  const addActivity = (activity: Omit<Activity, "id" | "timestamp">) => {
     const newActivity: Activity = {
       ...activity,
       id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
-    setActivityHistory(prev => {
-      const updatedHistory = [newActivity, ...prev].slice(0, 50); // Garder les 50 dernières activités
-      
-      // Sauvegarder dans le localStorage
-      if (user) {
-        localStorage.setItem(`userActivities_${user._id}`, JSON.stringify(updatedHistory));
-      }
-      
+
+    setActivityHistory((prev) => {
+      const updatedHistory = [newActivity, ...prev].slice(0, 50);
+      if (user) localStorage.setItem(`userActivities_${user.id}`, JSON.stringify(updatedHistory));
       return updatedHistory;
     });
   };
 
-  const value = {
-    user,
-    login,
-    logout,
-    loading,
-    activityHistory,
-    addActivity
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, login, logout, toggleActiveUser, loading, activityHistory, addActivity }}>
       {children}
     </AuthContext.Provider>
   );

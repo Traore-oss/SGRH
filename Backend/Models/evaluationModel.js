@@ -8,6 +8,11 @@ const performanceSchema = new mongoose.Schema(
       ref: 'Utilisateur', // référence au modèle des utilisateurs/employés
       required: true
     },
+      rh: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Utilisateur',
+        required: true
+      },
     objectif: {
       type: String,
       required: true,

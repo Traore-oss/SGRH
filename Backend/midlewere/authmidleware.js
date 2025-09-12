@@ -1,56 +1,38 @@
+// middlewere/authmidleware.js
 const jwt = require("jsonwebtoken");
-const UserModel = require("../Models/usersModel");
+const Utilisateur = require("../Models/usersModel");
 
-// ✅ Vérifie si l'utilisateur est connecté (pour templates / views)
-module.exports.checkUser = async (req, res, next) => {
-  const token = req.cookies.jwt || req.headers.authorization?.split(" ")[1];
+const requireAuth = async (req, res, next) => {
+  const token = req.cookies.jwt;
+  if (!token) return res.status(401).json({ message: "Accès non autorisé, token manquant" });
 
-  if (token) {
-    jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
-      if (err) {
-        res.locals.user = null;
-        res.cookie("jwt", "", { maxAge: 1 });
-        return next();
-      }
-      try {
-        const user = await UserModel.findById(decodedToken.id).select("-password");
-        res.locals.user = user || null;
-      } catch {
-        res.locals.user = null;
-      }
-      next();
-    });
-  } else {
-    res.locals.user = null;
+  try {
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decodedToken.id || decodedToken._id;
+    const user = await Utilisateur.findById(userId).select("-password");
+    if (!user) return res.status(401).json({ message: "Utilisateur introuvable" });
+
+    req.user = user;
     next();
+  } catch (err) {
+    console.error(err);
+    res.status(401).json({ message: "Token invalide ou expiré" });
   }
 };
 
-// ✅ Middleware pour vérifier que l'utilisateur est connecté
-module.exports.requireAuth = async (req, res, next) => {
-  const token = req.cookies.jwt || req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Token manquant" });
+const checkAuth = async (req, res) => {
+  const token = req.cookies.jwt;
+  if (!token) return res.status(200).json({ user: null });
 
-  jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
-    if (err) return res.status(401).json({ error: "Token invalide" });
-
-    try {
-      const user = await UserModel.findById(decodedToken.id);
-      if (!user || !user.isActive) {
-        return res.status(403).json({ error: "Compte désactivé ou inexistant" });
-      }
-      req.user = user;
-      next();
-    } catch {
-      res.status(500).json({ error: "Erreur serveur" });
-    }
-  });
-};
-
-// ✅ Middleware pour vérifier que l'utilisateur est Admin
-module.exports.requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === "Admin") {
-    return next();
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id || decoded._id;
+    const user = await Utilisateur.findById(userId).select("-password");
+    res.status(200).json({ user: user || null });
+  } catch (err) {
+    console.error("Erreur checkAuth:", err.message);
+    res.status(200).json({ user: null });
   }
-  return res.status(403).json({ error: "Accès refusé, admin requis" });
 };
+
+module.exports = { requireAuth, checkAuth };

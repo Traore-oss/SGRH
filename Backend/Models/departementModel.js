@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const departementSchema = new mongoose.Schema({
+       rh: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+      required: true
+    },
   code_departement: {
     type: String,
     required: true,

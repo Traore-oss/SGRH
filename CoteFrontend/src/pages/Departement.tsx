@@ -1,5 +1,5 @@
-// import React, { useState, useEffect } from 'react';
-import { Plus, Users, Edit, Trash2 } from 'lucide-react';
+// import { Plus, Users, Edit, Trash2 } from 'lucide-react';
+import { Edit, Plus, Trash2, Users } from 'lucide-react';
 import { DataTable } from '../commons/DataTable';
 import { useEffect, useState } from 'react';
 
@@ -118,7 +118,7 @@ export const Departments: React.FC = () => {
   // 🔹 Charger les employés
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/Users/getAllEmployees', {
+      const res = await fetch('http://localhost:8000/api/Users/', {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Erreur lors de la récupération des employés');

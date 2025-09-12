@@ -6,6 +6,11 @@ const congeSchema = new mongoose.Schema({
     ref: 'Utilisateur',
     required: true
   },
+  rh: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Utilisateur',
+    required: true
+  },
   typeConge: {
     type: String,
     enum: [

@@ -1,565 +1,570 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Calendar, Clock, CheckCircle, XCircle, AlertCircle, Eye, RefreshCw, Search, Filter 
-} from 'lucide-react';
-import { DataTable } from '../commons/DataTable';
-import { Modal } from '../commons/Modal';
-import axios from 'axios';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-refresh/only-export-components */
+// import React, { useState, useEffect } from "react";
+import { Pie, Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+} from "chart.js";
+import { useEffect, useState } from "react";
 
-interface Employee {
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// Interface pour un département
+export interface Departement {
   _id: string;
-  prenom: string;
   nom: string;
-  matricule: string;
-  email: string;
 }
 
-interface Leave {
+// Interface pour un employé
+export interface Employee {
+  isActive: any;
   _id: string;
-  employe: Employee;
+  matricule: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  poste: string;
+  departement?: Departement;
+  salaire: string | number;
+  typeContrat: 'CDI' | 'CDD';
+  role: string;
+  photo?: string;
+}
+
+// Interface pour une demande de congé
+export interface DemandeConge {
+  _id: string;
+  employe: string | Employee;
   typeConge: string;
   dateDebut: string;
   dateFin: string;
   nbJours: number;
-  isApproved: boolean | null;
   motif: string;
-  createdAt: string;
-  updatedAt: string;
-  dateValidation?: string;
-  commentaireResponsable?: string;
+  etat: boolean | null;
+  commentaireResponsable: string;
+  dateSoumission: string;
+  dateValidation: string | null;
+  isApproved?: boolean;
 }
 
-export const Leaves: React.FC = () => {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedConge, setSelectedConge] = useState<Leave | null>(null);
-  const [leaves, setLeaves] = useState<Leave[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
+// Fonction pour récupérer tous les employés
+export const getEmployees = async (): Promise<Employee[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/Users/getAllEmployees`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Erreur lors de la récupération des employés');
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+};
 
-  const [formData, setFormData] = useState({
-    matricule: '',
-    typeConge: '',
-    dateDebut: '',
-    dateFin: '',
-    motif: ''
-  });
+// Fonction pour récupérer toutes les demandes de congé
+export const getDemandesConge = async (): Promise<DemandeConge[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/conges/getAllConges`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error('Erreur lors de la récupération des demandes de congé');
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+};
 
-  const api = axios.create({
-    baseURL: 'http://localhost:8000/api/conges',
-    withCredentials: true
-  });
+// Fonction pour approuver un congé
+export const approuverConge = async (id: string): Promise<{success: boolean, message: string}> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/conges/approuverConge/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+    });
+    
+    if (!res.ok) throw new Error('Erreur lors de l\'approbation du congé');
+    const data = await res.json();
+    return { success: true, message: data.message };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: "Erreur lors de l'approbation du congé" };
+  }
+};
 
-  const fetchConges = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/getAllConges');
+// Fonction pour refuser un congé
+export const refuserConge = async (id: string): Promise<{success: boolean, message: string}> => {
+  try {
+    const res = await fetch(`${API_BASE}/api/conges/refuserConge/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+    });
+    
+    if (!res.ok) throw new Error('Erreur lors du refus du congé');
+    const data = await res.json();
+    return { success: true, message: data.message };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: "Erreur lors du refus du congé" };
+  }
+};
 
-      if (response.data && Array.isArray(response.data)) {
-        setLeaves(response.data);
-        toast.success(`✅ ${response.data.length} demande(s) de congé chargée(s)`);
-      } else {
-        setLeaves([]);
-        toast.info('ℹ️ Aucune demande de congé trouvée');
-      }
-    } catch (error: any) {
-      console.error('Erreur lors du chargement des congés:', error);
-      const errorMessage = error.response?.data?.message || 'Erreur lors du chargement des congés';
-      toast.error(`❌ ${errorMessage}`);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+// Composant principal pour la gestion des congés
+export const CongesManager: React.FC = () => {
+  const [demandes, setDemandes] = useState<DemandeConge[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedDemande, setSelectedDemande] = useState<DemandeConge | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [notification, setNotification] = useState<{type: string, message: string} | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Afficher une notification temporaire
+  const showNotification = (type: string, message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchConges();
-  };
-
+  // Charger les données depuis l'API
   useEffect(() => {
-    fetchConges();
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Récupération des employés
+        const employeesData = await getEmployees();
+        setEmployees(employeesData);
+        
+        // Récupération des demandes de congé
+        const demandesData = await getDemandesConge();
+        setDemandes(demandesData);
+        
+        setIsLoading(false);
+        showNotification("success", "Données chargées avec succès");
+      } catch (error) {
+        setIsLoading(false);
+        showNotification("error", "Erreur lors du chargement des données");
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+  // Fonction pour obtenir le statut d'une demande
+  const getStatut = (demande: DemandeConge): string => {
+    if (demande.etat === true || demande.isApproved === true) return "Approuvé";
+    if (demande.etat === false || demande.isApproved === false) return "Rejeté";
+    return "En attente";
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await api.post('/creerConge', formData);
+  // Fonction pour obtenir l'employé associé à une demande
+  const getEmploye = (demande: DemandeConge): Employee | null => {
+    if (typeof demande.employe === 'object') {
+      return demande.employe as Employee;
+    }
+    
+    const employe = employees.find(emp => emp._id === demande.employe);
+    return employe || null;
+  };
 
-      if (response.status === 201) {
-        toast.success('✅ Demande de congé créée avec succès');
-        setFormData({ matricule: '', typeConge: '', dateDebut: '', dateFin: '', motif: '' });
-        setShowAddModal(false);
-        fetchConges();
+  // Fonction pour gérer l'approbation d'une demande
+  const handleApprove = async (demande: DemandeConge) => {
+    const result = await approuverConge(demande._id);
+    
+    if (result.success) {
+      // Mettre à jour l'état local
+      setDemandes(prev => prev.map(d => 
+        d._id === demande._id ? { ...d, etat: true, isApproved: true } : d
+      ));
+      
+      showNotification("success", "Congé approuvé avec succès");
+      
+      // Envoyer une notification à l'employé
+      sendNotificationToEmployee(demande, "Approuvé");
+    } else {
+      showNotification("error", result.message);
+    }
+  };
+
+  // Fonction pour gérer le rejet d'une demande
+  const handleReject = async (demande: DemandeConge) => {
+    const result = await refuserConge(demande._id);
+    
+    if (result.success) {
+      // Mettre à jour l'état local
+      setDemandes(prev => prev.map(d => 
+        d._id === demande._id ? { ...d, etat: false, isApproved: false } : d
+      ));
+      
+      showNotification("success", "Congé rejeté avec succès");
+      
+      // Envoyer une notification à l'employé
+      sendNotificationToEmployee(demande, "Rejeté");
+    } else {
+      showNotification("error", result.message);
+    }
+  };
+
+  // Fonction pour envoyer une notification à l'employé
+  const sendNotificationToEmployee = (demande: DemandeConge, statut: string) => {
+    // Trouver l'employé concerné
+    const employee = getEmploye(demande);
+    
+    if (employee) {
+      // Simuler l'envoi d'une notification sur le site web
+      console.log(`Notification envoyée à ${employee.nom} ${employee.prenom}: Votre demande de congé a été ${statut.toLowerCase()}`);
+      
+      // Simuler l'envoi d'un email
+      console.log(`Email envoyé à ${employee.email}: Votre demande de congé a été ${statut.toLowerCase()}`);
+    }
+  };
+
+  // Fonction pour afficher les détails d'une demande
+  const showDetails = (demande: DemandeConge) => {
+    setSelectedDemande(demande);
+    setShowModal(true);
+  };
+
+  // Filtrer les demandes par statut
+  const demandesEnAttente = demandes.filter(d => getStatut(d) === "En attente");
+  const demandesApprouvees = demandes.filter(d => getStatut(d) === "Approuvé");
+  const demandesRejetees = demandes.filter(d => getStatut(d) === "Rejeté");
+
+  // Données pour les graphiques
+  const pieData = {
+    labels: ["En attente", "Approuvés", "Rejetés"],
+    datasets: [
+      { 
+        data: [demandesEnAttente.length, demandesApprouvees.length, demandesRejetees.length], 
+        backgroundColor: ["#f59e0b", "#16a34a", "#dc2626"],
+        borderWidth: 0,
+        hoverOffset: 12
       }
-    } catch (error: any) {
-      console.error('Erreur lors de la création:', error);
-      const errorMessage = error.response?.data?.message || 'Erreur lors de la création de la demande';
-      toast.error(`❌ ${errorMessage}`);
-    }
+    ],
   };
 
-  const handleApprouver = async (conge: Leave) => {
-    try {
-      const response = await api.put(`/approuverConge/${conge._id}`);
-
-      if (response.status === 200) {
-        toast.success('✅ Congé approuvé avec succès');
-        fetchConges();
-      }
-    } catch (error: any) {
-      console.error('Erreur lors de l\'approbation:', error);
-      const errorMessage = error.response?.data?.message || 'Erreur lors de l\'approbation';
-      toast.error(`❌ ${errorMessage}`);
-    }
-  };
-
-  const handleRefuser = async (conge: Leave) => {
-    try {
-      const response = await api.put(`/refuserConge/${conge._id}`);
-
-      if (response.status === 200) {
-        toast.success('✅ Congé refusé avec succès');
-        fetchConges();
-      }
-    } catch (error: any) {
-      console.error('Erreur lors du refus:', error);
-      const errorMessage = error.response?.data?.message || 'Erreur lors du refus';
-      toast.error(`❌ ${errorMessage}`);
-    }
-  };
-
-  const getStatusIcon = (conge: Leave) => {
-    if (conge.isApproved === true) return <CheckCircle className="h-4 w-4 text-green-600" />;
-    if (conge.isApproved === false) return <XCircle className="h-4 w-4 text-red-600" />;
-    return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-  };
-
-  const getStatusBadge = (conge: Leave) => {
-    const baseClasses = "inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium";
-    if (conge.isApproved === true) return `${baseClasses} bg-green-100 text-green-800`;
-    if (conge.isApproved === false) return `${baseClasses} bg-red-100 text-red-800`;
-    return `${baseClasses} bg-yellow-100 text-yellow-800`;
-  };
-
-  const getStatusText = (conge: Leave) => {
-    if (conge.isApproved === true) return 'Approuvé';
-    if (conge.isApproved === false) return 'Refusé';
-    return 'En attente';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const filteredLeaves = leaves.filter(leave => {
-    const matchesSearch = 
-      (leave.employe?.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (leave.employe?.nom?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      (leave.employe?.matricule?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      leave.typeConge.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = 
-      statusFilter === 'all' ||
-      (statusFilter === 'pending' && leave.isApproved === null) ||
-      (statusFilter === 'approved' && leave.isApproved === true) ||
-      (statusFilter === 'rejected' && leave.isApproved === false);
-
-    const matchesType = typeFilter === 'all' || leave.typeConge === typeFilter;
-
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
-  const uniqueTypes = Array.from(new Set(leaves.map(leave => leave.typeConge)));
-
-  const columns = [
-    {
-      key: 'employe',
-      label: 'Employé',
-      render: (_: any, row: Leave) => (
-        <div>
-          <div className="font-medium text-gray-900">
-            {row.employe?.prenom} {row.employe?.nom}
-          </div>
-          <div className="text-sm text-gray-500">
-            📋 Mat: {row.employe?.matricule || 'N/A'}
-          </div>
-        </div>
-      )
+  const pieOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            size: 12
+          }
+        }
+      },
     },
-    { 
-      key: 'typeConge', 
-      label: 'Type',
-      render: (value: string) => (
-        <span className="font-medium text-gray-700">{value}</span>
-      )
-    },
-    { 
-      key: 'dateDebut', 
-      label: 'Date début', 
-      render: (value: string) => (
-        <div className="text-sm text-gray-600">{formatDate(value)}</div>
-      )
-    },
-    { 
-      key: 'dateFin', 
-      label: 'Date fin', 
-      render: (value: string) => (
-        <div className="text-sm text-gray-600">{formatDate(value)}</div>
-      )
-    },
-    { 
-      key: 'nbJours', 
-      label: 'Durée',
-      render: (value: number) => (
-        <span className="font-medium text-blue-600">{value} jour(s)</span>
-      )
-    },
-    {
-      key: 'statut',
-      label: 'Statut',
-      render: (_: any, row: Leave) => (
-        <span className={getStatusBadge(row)}>
-          {getStatusIcon(row)}
-          <span className="font-medium">{getStatusText(row)}</span>
-        </span>
-      )
-    }
-  ];
-
-  const actions = [
-    { 
-      icon: Eye, 
-      label: 'Voir détails', 
-      onClick: (row: Leave) => { setSelectedConge(row); setShowViewModal(true); }, 
-      color: 'text-blue-600 hover:text-blue-700' 
-    },
-    { 
-      icon: CheckCircle, 
-      label: 'Approuver', 
-      onClick: handleApprouver, 
-      color: 'text-green-600 hover:text-green-700', 
-      show: (row: Leave) => row.isApproved === null 
-    },
-    { 
-      icon: XCircle, 
-      label: 'Refuser', 
-      onClick: handleRefuser, 
-      color: 'text-red-600 hover:text-red-700', 
-      show: (row: Leave) => row.isApproved === null 
-    }
-  ];
-
-  const stats = {
-    enAttente: leaves.filter(c => c.isApproved === null).length,
-    approuves: leaves.filter(c => c.isApproved === true).length,
-    refuses: leaves.filter(c => c.isApproved === false).length,
-    ceMois: leaves.filter(c => {
-      const date = new Date(c.dateDebut);
-      const now = new Date();
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    }).length
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-
-      <ToastContainer position="top-right" autoClose={5000} />
-
-      {/* En-tête */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Gestion des Congés</h1>
-          <p className="text-gray-600">Gérez les demandes de congé de vos employés</p>
+    <div className="min-h-screen bg-gray-50 py-4 px-2 sm:py-6 sm:px-4 lg:py-8 lg:px-6">
+      <div className="max-w-7xl mx-auto">
+        {/* En-tête */}
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Gestion des Congés</h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            Gérez les demandes de congé de vos employés
+          </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button 
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center justify-center space-x-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>{refreshing ? 'Chargement...' : 'Rafraîchir'}</span>
-          </button>
-          <button 
-            onClick={() => setShowAddModal(true)} 
-            className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nouvelle Demande</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Cartes de statistiques */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { title: 'En attente', value: stats.enAttente, color: 'bg-yellow-500', icon: Clock },
-          { title: 'Approuvés', value: stats.approuves, color: 'bg-green-500', icon: CheckCircle },
-          { title: 'Refusés', value: stats.refuses, color: 'bg-red-500', icon: XCircle },
-          { title: 'Ce mois', value: stats.ceMois, color: 'bg-blue-500', icon: Calendar }
-        ].map((stat, idx) => (
-          <div key={idx} className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className={`p-2 md:p-3 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-xl md:text-2xl font-bold text-gray-800">{stat.value}</p>
-                <p className="text-sm md:text-base text-gray-600">{stat.title}</p>
-              </div>
-            </div>
+        {/* Notification */}
+        {notification && (
+          <div className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg text-white text-sm sm:text-base ${
+            notification.type === 'error' ? 'bg-red-500' : 
+            notification.type === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
+          }`}>
+            {notification.message}
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Filtres et recherche */}
-      <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-200">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800">Demandes de Congé</h3>
-            <p className="text-sm text-gray-500">{filteredLeaves.length} demande(s) sur {leaves.length} total</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Filter className="h-4 w-4" />
-              <span>Filtres</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Barre de recherche */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Rechercher par nom, matricule, type ou motif..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        {/* Filtres avancés */}
-        {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="pending">En attente</option>
-                <option value="approved">Approuvés</option>
-                <option value="rejected">Refusés</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Type de congé</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">Tous les types</option>
-                {uniqueTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setStatusFilter('all');
-                  setTypeFilter('all');
-                  setSearchTerm('');
-                }}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Réinitialiser
-              </button>
+        {/* Indicateur de chargement */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg flex items-center text-sm sm:text-base">
+              <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-blue-500 mr-2 sm:mr-3"></div>
+              <span>Chargement des données...</span>
             </div>
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <DataTable
-            data={filteredLeaves}
-            columns={columns}
-            actions={actions}
-            emptyMessage="Aucune demande de congé trouvée"
-            loading={loading}
-          />
+        {/* Cartes statistiques */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-yellow-100">
+            <div className="flex items-center">
+              <div className="rounded-full bg-yellow-100 p-2 sm:p-3 mr-3 sm:mr-4">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-gray-500">En attente</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{demandesEnAttente.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-green-100">
+            <div className="flex items-center">
+              <div className="rounded-full bg-green-100 p-2 sm:p-3 mr-3 sm:mr-4">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-gray-500">Approuvés</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{demandesApprouvees.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-red-100">
+            <div className="flex items-center">
+              <div className="rounded-full bg-red-100 p-2 sm:p-3 mr-3 sm:mr-4">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-gray-500">Rejetés</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{demandesRejetees.length}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Modal Nouvelle Demande */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Nouvelle Demande de Congé" size="lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="matricule" className="block text-sm font-medium text-gray-700 mb-1">Matricule Employé *</label>
-              <input
-                type="text"
-                id="matricule"
-                value={formData.matricule}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                required
-                placeholder="Ex: EMP001"
-              />
-            </div>
-            <div>
-              <label htmlFor="typeConge" className="block text-sm font-medium text-gray-700 mb-1">Type de congé *</label>
-              <select
-                id="typeConge"
-                value={formData.typeConge}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                required
-              >
-                <option value="">-- Sélectionner --</option>
-                <option value="Congés payés">Congés payés</option>
-                <option value="Congé maladie">Congé maladie</option>
-                <option value="Congé maternité">Congé maternité</option>
-                <option value="Congé paternité">Congé paternité</option>
-                <option value="Absence exceptionnelle">Absence exceptionnelle</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="dateDebut" className="block text-sm font-medium text-gray-700 mb-1">Date de début *</label>
-              <input
-                type="date"
-                id="dateDebut"
-                value={formData.dateDebut}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="dateFin" className="block text-sm font-medium text-gray-700 mb-1">Date de fin *</label>
-              <input
-                type="date"
-                id="dateFin"
-                value={formData.dateFin}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                required
-              />
-            </div>
+        {/* Diagramme circulaire */}
+        <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl shadow-sm border border-gray-100 mb-6 sm:mb-8">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 text-center">Répartition des demandes de congé</h3>
+          <div className="h-60 sm:h-72 lg:h-80">
+            <Pie data={pieData} options={pieOptions} />
           </div>
-          <div>
-            <label htmlFor="motif" className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
-            <textarea
-              id="motif"
-              value={formData.motif}
-              onChange={handleInputChange}
-              rows={3}
-              className="w-full p-2 border border-gray-300 rounded-lg"
-              placeholder="Décrivez le motif de la demande..."
-            />
-          </div>
-          <div className="flex justify-end space-x-3 pt-4">
-            <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Enregistrer</button>
-          </div>
-        </form>
-      </Modal>
+        </div>
 
-      {/* Modal Détails Demande */}
-      <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Détails de la Demande" size="lg">
-        {selectedConge ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Employé</label>
-                <p className="text-gray-900">{selectedConge.employe.prenom} {selectedConge.employe.nom}</p>
-                <p className="text-sm text-gray-500">Matricule: {selectedConge.employe.matricule}</p>
+        {/* Tableau des demandes de congé */}
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden border border-gray-100">
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800">Liste des demandes de congé</h3>
+            <span className="text-xs sm:text-sm text-gray-500">{demandes.length} demande(s) au total</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employé</th>
+                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Période</th>
+                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durée</th>
+                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {demandes.length > 0 ? (
+                  demandes.map((d: DemandeConge) => {
+                    const statut = getStatut(d);
+                    const employe = getEmploye(d);
+                    
+                    return (
+                      <tr key={d._id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {employe ? `${employe.nom} ${employe.prenom}` : 'Employé inconnu'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {employe ? employe.matricule : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(d.dateDebut).toLocaleDateString('fr-FR')} - {new Date(d.dateFin).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">{d.typeConge}</td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">{d.nbJours} jour(s)</td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full
+                            ${statut === "En attente" ? "bg-yellow-100 text-yellow-800" : 
+                              statut === "Approuvé" ? "bg-green-100 text-green-800" : 
+                              "bg-red-100 text-red-800"}`}>
+                            {statut}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex space-x-2">
+                            {/* Bouton pour voir les détails */}
+                            <button
+                              onClick={() => showDetails(d)}
+                              className="px-2 py-1 sm:px-3 sm:py-1 bg-blue-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-blue-700"
+                            >
+                              Détails
+                            </button>
+                            
+                            {/* Boutons d'action conditionnels */}
+                            {statut === "En attente" ? (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(d)}
+                                  className="px-2 py-1 sm:px-3 sm:py-1 bg-green-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-green-700"
+                                >
+                                  Valider
+                                </button>
+                                <button
+                                  onClick={() => handleReject(d)}
+                                  className="px-2 py-1 sm:px-3 sm:py-1 bg-red-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-red-700"
+                                >
+                                  Refuser
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => showDetails(d)}
+                                  className="px-2 py-1 sm:px-3 sm:py-1 bg-gray-600 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-gray-700"
+                                >
+                                  Voir info
+                                </button>
+                                <button
+                                  className="px-2 py-1 sm:px-3 sm:py-1 bg-purple-600 text-white rounded-md text-xs sm:text-sm font-medium"
+                                  disabled
+                                >
+                                  {statut}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 sm:px-6 sm:py-8 text-center">
+                      <div className="flex flex-col items-center justify-center text-gray-500">
+                        <svg className="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p className="text-sm sm:text-base font-medium">Aucune demande de congé</p>
+                        <p className="mt-1 text-xs sm:text-sm">Aucune demande n'a été trouvée</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal de détails */}
+        {showModal && selectedDemande && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900">Détails de la demande</h3>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Type de congé</label>
-                <p className="text-gray-900">{selectedConge.typeConge}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Date début</label>
-                <p className="text-gray-900">{formatDate(selectedConge.dateDebut)}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Date fin</label>
-                <p className="text-gray-900">{formatDate(selectedConge.dateFin)}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Durée</label>
-                <p className="text-gray-900">{selectedConge.nbJours} jour(s)</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Statut</label>
-                <span className={getStatusBadge(selectedConge)}>
-                  {getStatusIcon(selectedConge)}
-                  <span>{getStatusText(selectedConge)}</span>
-                </span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Motif</label>
-              <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedConge.motif}</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Date de soumission</label>
-                <p className="text-gray-900">{formatDateTime(selectedConge.createdAt)}</p>
-              </div>
-              {selectedConge.dateValidation && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Date de validation</label>
-                  <p className="text-gray-900">{formatDateTime(selectedConge.dateValidation)}</p>
+              <div className="px-6 py-4">
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Employé</h4>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {getEmploye(selectedDemande) ? 
+                      `${getEmploye(selectedDemande)?.nom} ${getEmploye(selectedDemande)?.prenom} (${getEmploye(selectedDemande)?.matricule})` : 
+                      'Employé inconnu'}
+                  </p>
                 </div>
-              )}
-            </div>
-            {selectedConge.commentaireResponsable && (
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Commentaire du responsable</label>
-                <p className="text-gray-900 bg-yellow-50 p-3 rounded-lg">{selectedConge.commentaireResponsable}</p>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Période</h4>
+                  <p className="mt-1 text-sm text-gray-900">
+                    Du {new Date(selectedDemande.dateDebut).toLocaleDateString('fr-FR')} au {new Date(selectedDemande.dateFin).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Type de congé</h4>
+                  <p className="mt-1 text-sm text-gray-900">{selectedDemande.typeConge}</p>
+                </div>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Durée</h4>
+                  <p className="mt-1 text-sm text-gray-900">{selectedDemande.nbJours} jour(s)</p>
+                </div>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Motif</h4>
+                  <p className="mt-1 text-sm text-gray-900">{selectedDemande.motif || 'Non spécifié'}</p>
+                </div>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Statut</h4>
+                  <p className="mt-1">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full
+                      ${getStatut(selectedDemande) === "En attente" ? "bg-yellow-100 text-yellow-800" : 
+                        getStatut(selectedDemande) === "Approuvé" ? "bg-green-100 text-green-800" : 
+                        "bg-red-100 text-red-800"}`}>
+                      {getStatut(selectedDemande)}
+                    </span>
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-500">Date de la demande</h4>
+                  <p className="mt-1 text-sm text-gray-900">{new Date(selectedDemande.dateSoumission).toLocaleDateString('fr-FR')}</p>
+                </div>
+                {selectedDemande.commentaireResponsable && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-500">Commentaire du responsable</h4>
+                    <p className="mt-1 text-sm text-gray-900">{selectedDemande.commentaireResponsable}</p>
+                  </div>
+                )}
               </div>
-            )}
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Fermer
+                </button>
+                {getStatut(selectedDemande) === "En attente" && (
+                  <>
+                    <button
+                      onClick={() => {
+                        handleApprove(selectedDemande);
+                        setShowModal(false);
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    >
+                      Valider
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleReject(selectedDemande);
+                        setShowModal(false);
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      Refuser
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        ) : (
-          <p>Aucune donnée disponible</p>
         )}
-      </Modal>
+      </div>
     </div>
   );
 };

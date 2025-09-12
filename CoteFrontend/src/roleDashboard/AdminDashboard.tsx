@@ -1,16 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// import React, { useEffect, useState } from 'react';
+// /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  Users, Building2, FileText, Settings, BarChart3, Calendar,
-  Clock, Menu, LogOut, Edit, Eye, Filter, Search, X, Plus, User, Bell, ChevronDown, Lock
+  Users, Building2, FileText, Settings, Calendar,
+  Clock, Menu, LogOut, Edit, Eye, Filter, Search, X, Plus, User, Bell, ChevronDown, Lock,
+  Home, BookOpen, DollarSign, TrendingUp
 } from 'lucide-react';
-import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {useAuth} from '../context/AuthContext';
 import { getEmployees, type Employee } from '../Components/ServiceEmployer';
 import { Dashboard } from '../pages/Dashboard';
-import { Leaves } from '../pages/Conges';
+import { CongesManager } from '../pages/Conges';
 import { AttendanceManager } from '../pages/Pointages';
 import { Departments } from '../pages/Departement';
 import { PerformanceEmployer } from '../pages/Performance';
@@ -19,6 +18,113 @@ import Salaire from "../pages/Salaire";
 import SuiviFormations from "../pages/Formation";
 import { EmployeeForm } from '../forms/EmployeeForm';
 import { type Key, type ReactElement, type JSXElementConstructor, type ReactNode, type ReactPortal, useState, useEffect } from 'react';
+
+// ==================== Styles d'animation ====================
+const cardAnimation = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes bounce {
+    0%, 20%, 53%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40%, 43% {
+      transform: translateY(-10px);
+    }
+    70% {
+      transform: translateY(-5px);
+    }
+    90% {
+      transform: translateY(-2px);
+    }
+  }
+  
+  .animate-fadeInUp {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  
+  .animate-slideInLeft {
+    animation: slideInLeft 0.4s ease-out forwards;
+  }
+  
+  .animate-pulse {
+    animation: pulse 2s infinite;
+  }
+  
+  .animate-bounce {
+    animation: bounce 1s infinite;
+  }
+  
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .sidebar-item {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .sidebar-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+    transition: left 0.5s;
+  }
+  
+  .sidebar-item:hover::before {
+    left: 100%;
+  }
+  
+  .sidebar-item.active {
+    box-shadow: inset 3px 0 0 #3b82f6;
+  }
+`;
+
+// Ajout des styles d'animation au document
+const styleSheet = document.createElement("style");
+styleSheet.innerText = cardAnimation;
+document.head.appendChild(styleSheet);
 
 // ==================== Modal amélioré ====================
 interface ModalProps {
@@ -36,7 +142,7 @@ const Modal: React.FC<ModalProps> = ({ onClose, title, children, size = 'md' }) 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeInUp">
       <div className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto`}>
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center rounded-t-xl">
           {title && <h2 className="text-xl font-semibold text-gray-800">{title}</h2>}
@@ -63,10 +169,14 @@ interface StatCardProps {
     value: number;
     isPositive: boolean;
   };
+  delay?: number;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, trend }) => (
-  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, trend, delay = 0 }) => (
+  <div 
+    className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover-lift animate-fadeInUp"
+    style={{ animationDelay: `${delay}ms` }}
+  >
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
@@ -77,7 +187,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, trend })
           </p>
         )}
       </div>
-      <div className={`p-3 rounded-lg ${color}`}>
+      <div className={`p-3 rounded-lg ${color} transition-transform duration-300 hover:animate-pulse`}>
         {icon}
       </div>
     </div>
@@ -116,6 +226,20 @@ const calculateSeniority = (hireDate: string) => {
   }
 };
 
+// ==================== Menu amélioré avec icônes ====================
+const adminMenuItems = [
+  { id: 'dashboard', label: 'Tableau de Bord', icon: Home },
+  { id: 'departments', label: 'Départements', icon: Building2 },
+  { id: 'CongesManager', label: 'Gestion des Congés', icon: Calendar },
+  { id: 'attendance', label: 'Présences', icon: Clock },
+  { id: 'Performance', label: 'Performance', icon: TrendingUp },
+  { id: 'SuiviFormations', label: 'Formations', icon: BookOpen },
+  { id: 'reports', label: 'Rapports', icon: FileText },
+  { id: 'Salaire', label: 'Salaires', icon: DollarSign },
+  { id: 'users', label: 'Utilisateurs', icon: Users },
+  { id: 'settings', label: 'Paramètres', icon: Settings },
+];
+
 // ==================== UserManagement amélioré ====================
 export const UserManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -150,18 +274,35 @@ export const UserManagement: React.FC = () => {
     fetchEmployees(); 
   }, []);
 
-  const toggleIsActive = async (userId: string, isActive: boolean, userName: string) => {
-    try {
-      const url = `${API_BASE}/api/Users/${isActive ? 'deactivateEmployee' : 'activateEmployee'}/${userId}`;
-      await axios.patch(url, {}, { withCredentials: true });
-      setEmployees(prev => prev.map(u => u._id === userId ? { ...u, isActive: !isActive } : u));
+const toggleActive = async (
+  userId: string,
+  isActive: boolean,
+  userName: string
+) => {
+  try {
+    const res = await fetch(`${API_BASE}/api/Auth/toggleActive/${userId}`, {
+      method: "PATCH",
+      credentials: "include",
+    });
 
-      toast.success(`Utilisateur ${userName} ${isActive ? 'désactivé' : 'activé'} avec succès`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Impossible de changer l'état de l'utilisateur.");
-    }
-  };
+    if (!res.ok) throw new Error("Erreur lors du changement de statut");
+
+    // Mettre à jour localement la liste des employés
+    setEmployees((prev) =>
+      prev.map(emp =>
+        emp._id === userId ? { ...emp, isActive: !isActive } : emp
+      )
+    );
+
+    toast.success(
+      `Utilisateur ${userName} ${isActive ? "désactivé" : "activé"} avec succès`
+    );
+  } catch (err) {
+    console.error(err);
+    toast.error("Impossible de changer l'état de l'utilisateur.");
+  }
+};
+
 
   // Statistiques
   const totalEmployees = employees.length;
@@ -197,7 +338,6 @@ export const UserManagement: React.FC = () => {
   const getRoleBadgeClass = (role: string) => {
     switch (role?.toLowerCase()) {
       case 'admin': return 'bg-purple-100 text-purple-800';
-      case 'manager': return 'bg-blue-100 text-blue-800';
       case 'employé': return 'bg-green-100 text-green-800';
       case 'rh': return 'bg-pink-100 text-pink-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -222,28 +362,32 @@ export const UserManagement: React.FC = () => {
           icon={<Users className="h-6 w-6 text-white" />}
           color="bg-blue-500"
           trend={{ value: 12, isPositive: true }}
+          delay={0}
         />
         <StatCard
           title="Employés Actifs"
           value={activeEmployees}
           icon={<User className="h-6 w-6 text-white" />}
           color="bg-green-500"
+          delay={100}
         />
         <StatCard
           title="Employés Inactifs"
           value={inactiveEmployees}
           icon={<User className="h-6 w-6 text-white" />}
           color="bg-red-500"
+          delay={200}
         />
         <StatCard
           title="Départements"
           value={new Set(employees.map(e => e.departement?.nom).filter(Boolean)).size}
           icon={<Building2 className="h-6 w-6 text-white" />}
           color="bg-purple-500"
+          delay={300}
         />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp">
         <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto">
             <div className="relative flex-1">
@@ -251,7 +395,7 @@ export const UserManagement: React.FC = () => {
               <input
                 type="text"
                 placeholder="Rechercher un utilisateur..."
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 focus:shadow-md"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
@@ -259,16 +403,16 @@ export const UserManagement: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative">
                 <button 
-                  className="inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
+                  className="inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full hover-lift"
                   onClick={() => setIsFilterOpen(!isFilterOpen)}
                 >
                   <Filter className="h-4 w-4" />
                   <span>Filtres</span>
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {isFilterOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-10">
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-10 animate-fadeInUp">
                     <div className="text-sm font-medium text-gray-700 mb-2">Filtrer par</div>
                     <div className="space-y-3">
                       <div>
@@ -276,7 +420,7 @@ export const UserManagement: React.FC = () => {
                         <select
                           value={statusFilter}
                           onChange={e => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm transition-colors focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="all">Tous</option>
                           <option value="active">Actifs</option>
@@ -288,7 +432,7 @@ export const UserManagement: React.FC = () => {
                         <select
                           value={roleFilter}
                           onChange={e => setRoleFilter(e.target.value)}
-                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm transition-colors focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="all">Tous les rôles</option>
                           {roles.map(role => (
@@ -303,7 +447,7 @@ export const UserManagement: React.FC = () => {
             </div>
           </div>
           <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 w-full lg:w-auto"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 w-full lg:w-auto hover-lift animate-pulse"
             onClick={() => setShowAddModal(true)}
           >
             <Plus className="h-4 w-4" />
@@ -331,11 +475,15 @@ export const UserManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredEmployees.map(u => (
-                  <tr key={u._id} className="hover:bg-gray-50 transition-colors">
+                {filteredEmployees.map((u, index) => (
+                  <tr 
+                    key={u._id} 
+                    className="hover:bg-gray-50 transition-all duration-300 animate-fadeInUp"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center transition-transform hover:scale-110">
                           <span className="text-white font-medium text-sm">
                             {u.prenom?.[0]}{u.nom?.[0]}
                           </span>
@@ -379,26 +527,26 @@ export const UserManagement: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-1">
                         <button 
-                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-300 hover:scale-110"
                           onClick={() => { setSelectedUser(u); setShowViewModal(true); }}
                           title="Voir détails"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
-                          className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+                          className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110"
                           onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
                           title="Modifier"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
                             u.isActive 
                               ? 'text-red-500 hover:bg-red-50' 
                               : 'text-green-500 hover:bg-green-50'
                           }`}
-                          onClick={() => toggleIsActive(u._id, !!u.isActive, `${u.prenom} ${u.nom}`)}
+                          onClick={() => toggleActive(u._id, !!u.isActive, `${u.prenom} ${u.nom}`)}
                           title={u.isActive ? 'Désactiver' : 'Activer'}
                         >
                           {u.isActive ? <Lock className="h-4 w-4" /> : 'Activer'}
@@ -415,7 +563,7 @@ export const UserManagement: React.FC = () => {
                         <p>Aucun utilisateur trouvé</p>
                         {(statusFilter !== 'all' || roleFilter !== 'all') && (
                           <button 
-                            className="text-blue-600 hover:text-blue-800 text-sm mt-2"
+                            className="text-blue-600 hover:text-blue-800 text-sm mt-2 transition-colors"
                             onClick={() => {
                               setStatusFilter('all');
                               setRoleFilter('all');
@@ -465,7 +613,7 @@ export const UserManagement: React.FC = () => {
             <div className="space-y-6">
               {/* En-tête avec photo et informations principales */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex-shrink-0 h-20 w-20 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="flex-shrink-0 h-20 w-20 bg-blue-500 rounded-full flex items-center justify-center transition-transform hover:scale-105">
                   <span className="text-white font-medium text-2xl">
                     {selectedUser.prenom?.[0]}{selectedUser.nom?.[0]}
                   </span>
@@ -479,9 +627,9 @@ export const UserManagement: React.FC = () => {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeClass(selectedUser.role || '')}`}>
                       {selectedUser.role || 'Non défini'}
                     </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
-                      {selectedUser.matricule || 'Sans matricule'}
-                    </span>
+                  <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
+                  {selectedUser.employer?.matricule || 'Sans matricule'}
+                  </span>
                   </div>
                 </div>
               </div>
@@ -542,7 +690,7 @@ export const UserManagement: React.FC = () => {
               {/* Actions */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors hover-lift"
                   onClick={() => {
                     setShowViewModal(false);
                     setSelectedUser(selectedUser);
@@ -552,7 +700,7 @@ export const UserManagement: React.FC = () => {
                   Modifier
                 </button>
                 <button
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors hover-lift"
                   onClick={() => setShowViewModal(false)}
                 >
                   Fermer
@@ -565,20 +713,9 @@ export const UserManagement: React.FC = () => {
     </div>
   );
 };
+
 // ==================== AdminDashboard amélioré ====================
-type AdminView = 'dashboard' | 'leaves' | 'attendance' | 'departments' | 'reports' | 'settings' | 'users' | 'Performance' |'SuiviFormations' | 'Salaire';
-const adminMenuItems = [
-  { id: 'dashboard', label: 'Tableau de Bord', icon: BarChart3 },
-  { id: 'departments', label: 'Départements', icon: Building2 },
-  { id: 'leaves', label: 'Congés', icon: Calendar },
-  { id: 'attendance', label: 'Présences', icon: Clock },
-  { id: 'Performance', label: 'Performance', icon: FileText },
-  { id: 'SuiviFormations', label: 'SuiviFormations', icon: FileText },
-  { id: 'reports', label: 'Rapports', icon: FileText },
-  { id: 'Salaire', label: 'Salaire', icon: FileText },
-  { id: 'users', label: 'Utilisateurs', icon: Users },
-  { id: 'settings', label: 'Paramètres', icon: Settings },
-];
+type AdminView = 'dashboard' | 'CongesManager' | 'attendance' | 'departments' | 'reports' | 'settings' | 'users' | 'Performance' |'SuiviFormations' | 'Salaire';
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -618,7 +755,7 @@ export const AdminDashboard: React.FC = () => {
   const renderView = () => {
     switch (activeView) {
       case 'dashboard': return <Dashboard />;
-      case 'leaves': return <Leaves />;
+      case 'CongesManager': return <CongesManager />;
       case 'attendance': return <AttendanceManager />;
       case 'Performance': return <PerformanceEmployer />;
       case 'departments': return <Departments />;
@@ -635,12 +772,12 @@ export const AdminDashboard: React.FC = () => {
     const titles: Record<AdminView, string> = {
       dashboard: 'Tableau de Bord Administrateur',
       departments: 'Gestion des Départements',
-      leaves: 'Gestion des Congés',
+      CongesManager: 'Gestion des Congés',
       attendance: 'Gestion des Présences',
       Performance: 'Gestion des Performances',
       SuiviFormations: 'Gestion des Formations',
       reports: 'Rapports et Statistiques',
-      Salaire: 'Rapports et Paiement',
+      Salaire: 'Gestion des Salaires',
       users: 'Gestion des Utilisateurs',
       settings: 'Paramètres Système'
     };
@@ -668,12 +805,12 @@ export const AdminDashboard: React.FC = () => {
           <div className="p-4 flex items-center space-x-3">
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors hover-lift"
             >
               <Menu className="h-5 w-5 text-gray-800" />
             </button>
             {!sidebarCollapsed && (
-              <div>
+              <div className="animate-slideInLeft">
                 <p className="text-xs text-gray-500">ADMIN <br /> Contrôle total</p>
               </div>
             )}
@@ -689,10 +826,10 @@ export const AdminDashboard: React.FC = () => {
                     setActiveView(item.id as AdminView);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 sidebar-item ${isActive ? 'active bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
-                  <Icon className="h-5 w-5 flex-shrink-0" />
-                  {!sidebarCollapsed && <span>{item.label}</span>}
+                  <Icon className="h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                  {!sidebarCollapsed && <span className="transition-opacity duration-300">{item.label}</span>}
                 </button>
               );
             })}
@@ -700,7 +837,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="p-4 border-t border-gray-200">
             <button 
               onClick={handleLogout} 
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors sidebar-item"
             >
               <LogOut className="h-5 w-5" />
               {!sidebarCollapsed && <span>Déconnexion</span>}
@@ -711,14 +848,14 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Menu mobile */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="fixed left-0 top-0 h-full bg-white w-64 shadow-lg z-50" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden animate-fadeInUp" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="fixed left-0 top-0 h-full bg-white w-64 shadow-lg z-50 animate-slideInLeft" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 flex items-center justify-between border-b border-gray-200">
               <div>
                 <h1 className="text-xl font-bold text-gray-800">ADMIN</h1>
                 <p className="text-xs text-gray-500">Contrôle total</p>
               </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover-lift">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -733,7 +870,7 @@ export const AdminDashboard: React.FC = () => {
                       setActiveView(item.id as AdminView);
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 sidebar-item ${isActive ? 'active bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
                     <Icon className="h-5 w-5" />
                     <span>{item.label}</span>
@@ -744,7 +881,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
               <button 
                 onClick={handleLogout} 
-                className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors sidebar-item"
               >
                 <LogOut className="h-5 w-5" />
                 <span>Déconnexion</span>
@@ -760,7 +897,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex items-center space-x-3">
             <button 
               onClick={() => setIsMobileMenuOpen(true)} 
-              className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
+              className="p-2 hover:bg-gray-100 rounded-lg md:hidden hover-lift"
             >
               <Menu className="h-5 w-5 text-gray-800" />
             </button>
@@ -768,9 +905,9 @@ export const AdminDashboard: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="relative">
+            <div className="relative group">
               <button 
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative"
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative hover-lift"
                 onClick={() => {
                   // Marquer les notifications comme lues
                   setNotifications(notifications.map(n => ({ ...n, read: true })));
@@ -778,14 +915,14 @@ export const AdminDashboard: React.FC = () => {
               >
                 <Bell className="h-5 w-5" />
                 {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce">
                     {notifications.filter(n => !n.read).length}
                   </span>
                 )}
               </button>
               
               {/* Dropdown des notifications */}
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 hidden group-hover:block">
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 hidden group-hover:block animate-fadeInUp">
                 <div className="px-4 py-2 border-b border-gray-200">
                   <h3 className="font-medium text-gray-800">Notifications</h3>
                 </div>
@@ -796,7 +933,7 @@ export const AdminDashboard: React.FC = () => {
                     notifications.map((notification: { id: Key | null | undefined; read: any; message: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; timestamp: string | number | Date; }) => (
                       <div 
                         key={notification.id} 
-                        className={`px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
+                        className={`px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
                       >
                         <div className="text-sm text-gray-800">{notification.message}</div>
                         <div className="text-xs text-gray-500 mt-1">
@@ -807,7 +944,7 @@ export const AdminDashboard: React.FC = () => {
                   )}
                 </div>
                 <div className="px-4 py-2 border-t border-gray-200">
-                  <button className="text-sm text-blue-600 hover:text-blue-800">
+                  <button className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
                     Voir toutes les notifications
                   </button>
                 </div>
@@ -817,9 +954,9 @@ export const AdminDashboard: React.FC = () => {
             <div className="relative">
               <button 
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors hover-lift"
               >
-                <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center transition-transform hover:scale-110">
                   <span className="text-white font-medium text-sm">
                     {user?.prenom?.[0]}{user?.nom?.[0]}
                   </span>
@@ -832,24 +969,24 @@ export const AdminDashboard: React.FC = () => {
                     {user?.role}
                   </div>
                 </div>
-                <ChevronDown className="h-4 w-4 text-gray-500" />
+                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
               </button>
               
               {showUserDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-fadeInUp">
                   <div className="px-4 py-2 border-b border-gray-200">
                     <div className="text-sm font-medium text-gray-900">{user?.prenom} {user?.nom}</div>
                     <div className="text-xs text-gray-500 capitalize">{user?.role}</div>
                   </div>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                     Mon profil
                   </button>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                     Historique des activités
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Déconnexion</span>
@@ -866,4 +1003,4 @@ export const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-};
+}

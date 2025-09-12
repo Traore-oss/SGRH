@@ -5,17 +5,17 @@ export interface User {
   nom: string;
   prenom: string;
   email: string;
-  role: string;
+  role: "Admin" | "RH" | "Employe";
   isActive: boolean;
   departement?: string;
+  entreprise?: string;
 }
 
 // Connexion
 export const login = async (email: string, password: string): Promise<User> => {
   try {
-    const res = await api.post("/auth/signIn", { email, password });
-    return res.data.user; // retourne l'objet utilisateur
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await api.post("/Auth/login", { email, password });
+    return res.data.user;
   } catch (err: any) {
     throw new Error(err.response?.data?.error || "Erreur serveur");
   }
@@ -24,19 +24,29 @@ export const login = async (email: string, password: string): Promise<User> => {
 // Déconnexion
 export const logout = async (): Promise<void> => {
   try {
-    await api.post("/auth/logout");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (err) {
+    await api.get("/Auth/logout");
+  } catch {
     throw new Error("Erreur lors de la déconnexion");
   }
 };
 
-// Vérification auth (récupère l'utilisateur connecté)
-export const checkAuth = async (): Promise<User | null> => {
+// Récupérer l'utilisateur connecté
+export const checkAuth = async () => {
   try {
-    const res = await api.get("/auth/check");
+    const res = await api.get("/Auth/check");
     return res.data.user || null;
   } catch {
     return null;
+  }
+};
+
+
+// Activer / désactiver un utilisateur
+export const toggleActiveUser = async (userId: string): Promise<User> => {
+  try {
+    const res = await api.patch(`/auth/toggleActive/${userId}`);
+    return res.data.utilisateur;
+  } catch (err: any) {
+    throw new Error(err.response?.data?.message || "Erreur lors du changement de statut");
   }
 };

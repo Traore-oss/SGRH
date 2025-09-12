@@ -3,9 +3,9 @@ const router = express.Router();
 const performanceController = require('../Controller/performanceController');
 
 // CRUD complet sur /api/performances
-router.post('/performances', performanceController.ajouterPerformance);
-router.get('/performances', performanceController.getAllPerformances);
-router.put('/performances/:id', performanceController.updatePerformance);
-router.delete('/performances/:id', performanceController.deletePerformance);
+router.post('/', performanceController.ajouterPerformance);
+router.get('/', performanceController.getAllPerformances);
+router.put('/:id', performanceController.updatePerformance);
+router.delete('/:id', performanceController.deletePerformance);
 
 module.exports = router;

@@ -1,6 +1,16 @@
 const mongoose = require('mongoose');
 
 const pointageSchema = new mongoose.Schema({
+    employe: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+      required: true
+    },
+    rh: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+      required: true
+    },
   matricule: { type: String, required: true },
   date: { type: String, required: true },
   statut: { type: String, enum: ['Présent', 'Retard', 'Absent'], default: 'Absent' },

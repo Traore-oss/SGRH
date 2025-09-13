@@ -3,7 +3,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import * as authService from "../service/AuthService"; // <-- ton fichier service
 
-interface User {
+export interface User {
+  employer: any;
   id: string;
   nom: string;
   prenom: string;
@@ -12,7 +13,9 @@ interface User {
   isActive: boolean;
   departement?: string;
   entreprise?: string;
+  matricule?: string; 
 }
+
 
 interface Activity {
   id: string;

@@ -8,6 +8,7 @@ export interface User {
   role: string;
   departement?: string;
   isActive: boolean;
+  matricule?: string;
 }
 
 // Instance axios
@@ -32,7 +33,7 @@ export const login = async (email: string, password: string): Promise<User> => {
 export const logout = async (): Promise<void> => {
   try {
     await api.post("/auth/logout", {});
-  } catch  {
+  } catch (error) {
     throw new Error("Erreur lors de la déconnexion");
   }
 };

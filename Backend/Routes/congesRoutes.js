@@ -1,20 +1,19 @@
 const express = require('express');
 const router = express.Router();
-
-// Controllers
 const congeController = require('../Controller/congesController');
-// Utilisateur
+const { requireAuth } = require("../midlewere/authmidleware");
 
-// Demande de congés
-router.post('/creerConge', congeController.creerConge);
-router.get('/getAllConges', congeController.getAllConges);
-router.get('/getCongeById/:id', congeController.getCongeById);
-router.put('/updateEtatConge/:id', congeController.updateEtatConge);
-router.delete('/supprimerConge/:id', congeController.supprimerConge);
-// les approvation de refuser
-router.put('/approuverConge/:id', congeController.approuverConge);
-router.put('/refuserConge/:id', congeController.refuserConge);
+// ➕ Créer un congé
+router.post('/creerConge', requireAuth, congeController.creerConge);
 
+// 🔄 Récupérer tous les congés
+router.get('/getAllConges', requireAuth, congeController.getAllConges);
+
+// ✅ Approuver un congé
+router.put('/approuverConge/:id', requireAuth, congeController.approuverConge);
+
+// ❌ Refuser un congé
+router.put('/refuserConge/:id', requireAuth, congeController.refuserConge);
+router.get('/getCongesEmploye', requireAuth, congeController.getCongesEmploye);
 
 module.exports = router;
-

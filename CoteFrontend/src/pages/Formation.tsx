@@ -55,7 +55,7 @@ export default function SuiviFormations() {
         setForm({
           titre: formationToEdit.titre,
           formateur: formationToEdit.formateur,
-          debut: formationToEdit.debut.split('T')[0], // Format YYYY-MM-DD pour les inputs date
+          debut: formationToEdit.debut.split('T')[0], 
           fin: formationToEdit.fin.split('T')[0],
         });
         setEditId(id);

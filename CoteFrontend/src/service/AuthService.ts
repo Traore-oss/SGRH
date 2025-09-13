@@ -9,6 +9,7 @@ export interface User {
   isActive: boolean;
   departement?: string;
   entreprise?: string;
+  matricule?: string; 
 }
 
 // Connexion

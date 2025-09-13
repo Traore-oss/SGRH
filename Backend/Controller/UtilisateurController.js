@@ -19,7 +19,7 @@ async function generateMatricule() {
   return matricule;
 }
 
-// === Générer mot de passe aléatoire (employés) ===
+// === Générer mot de passe aléatoire ===
 function generateRandomPassword(length = 8) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@!$%*?";
   let pwd = "";
@@ -38,24 +38,21 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({ message: "Champs requis manquants." });
     }
 
-    // Vérifier email unique
     if (await Utilisateur.findOne({ email })) {
       return res.status(400).json({ message: "Cet email est déjà utilisé." });
     }
 
     let plainPassword = req.body.password;
 
-if (role === "Employe") {
-    if (!req.user) {
-        return res.status(401).json({ message: "Vous devez être connecté en RH pour créer un employé" });
-    }
-    req.body.employer = req.body.employer || {};
-    req.body.employer.matricule = await generateMatricule();
-    plainPassword = generateRandomPassword();
-    req.body.password = plainPassword;
-    req.body.employer.createdByrh = req.user._id; // 🔑 RH connecté
-    delete req.body.rh;
+    if (role === "Employe") {
+      if (!req.user) return res.status(401).json({ message: "Vous devez être connecté en RH pour créer un employé." });
 
+      req.body.employer = req.body.employer || {};
+      req.body.employer.matricule = await generateMatricule();
+      plainPassword = generateRandomPassword();
+      req.body.password = plainPassword;
+      req.body.employer.createdByrh = req.user._id;
+      delete req.body.rh;
 
     } else if (role === "RH") {
       req.body.rh = req.body.rh || {};
@@ -65,40 +62,31 @@ if (role === "Employe") {
       delete req.body.employer;
     }
 
-    // Création utilisateur
     const newUser = new Utilisateur(req.body);
     await newUser.save();
 
-    // Envoi email si employé
-    try {
-      let htmlContent = `
+    if (role === "Employe") {
+      const htmlContent = `
         <h3>Bonjour ${prenom} ${nom}</h3>
-        <p>Votre compte a été créé.</p>
+        <p>Votre compte a été créé :</p>
         <ul>
           <li>Email: ${email}</li>
           <li>Rôle: ${role}</li>
-      `;
-
-      if (role === "Employe") {
-        htmlContent += `
           <li>Matricule: ${newUser.employer.matricule}</li>
           <li>Mot de passe: ${plainPassword}</li>
-        `;
-      }
-
-      htmlContent += `</ul><p>Cordialement,<br/>L'équipe RH</p>`;
-
-      await transporter.sendMail({
+        </ul>
+        <p>Cordialement,<br/>L'équipe RH</p>
+      `;
+      transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
         subject: "Création de votre compte RH",
         html: htmlContent
-      });
-    } catch (mailErr) {
-      console.warn("⚠️ Erreur envoi mail:", mailErr.message);
+      }).catch(err => console.warn("⚠️ Erreur envoi mail:", err.message));
     }
 
     res.status(201).json({ message: "Utilisateur créé ✅", utilisateur: newUser });
+
   } catch (err) {
     console.error("Erreur serveur:", err);
     res.status(500).json({ error: "Erreur serveur." });
@@ -111,13 +99,10 @@ exports.getUsers = async (req, res) => {
     let users;
 
     if (req.user.role === "Admin") {
-      // Admin voit tous les utilisateurs
       users = await Utilisateur.find();
     } else if (req.user.role === "RH") {
-      // RH voit uniquement les employés qu'il a créés
       users = await Utilisateur.find({ "employer.createdByrh": req.user._id });
     } else {
-      // Employé → uniquement lui-même
       users = await Utilisateur.find({ _id: req.user._id });
     }
 
@@ -143,7 +128,6 @@ exports.updateUser = async (req, res) => {
   try {
     const { role, ...rest } = req.body;
 
-    // Nettoyage selon rôle
     if (role === "Admin") {
       delete rest.rh;
       delete rest.employer;

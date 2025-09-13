@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// import React, { useState } from 'react';
+import axios from "axios";
 import { 
-  User, 
   Calendar, 
   Clock, 
   FileText, 
@@ -17,13 +18,13 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
+import { useState,useEffect } from 'react';
 
 type EmployeeView = 'dashboard' | 'profile' | 'leaves' | 'attendance' | 'goals' | 'payslips';
 
 const employeeMenuItems = [
   { id: 'dashboard', label: 'Mon Tableau de Bord', icon: Briefcase },
-  { id: 'profile', label: 'Mon Profil', icon: User },
+  // { id: 'profile', label: 'Mon Profil', icon: User },
   { id: 'leaves', label: 'Mes Congés', icon: Calendar },
   { id: 'attendance', label: 'Mes Présences', icon: Clock },
   { id: 'goals', label: 'Mes Objectifs', icon: Target },
@@ -350,7 +351,7 @@ const EmployeeProfile: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Matricule</label>
-            <p className="text-gray-800">{user.matricule || 'Non attribué'}</p>
+            <p className="text-gray-800">{user.employer?.matricule || 'Non attribué'}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -375,86 +376,163 @@ const EmployeeProfile: React.FC = () => {
     </div>
   );
 };
-const EmployeeLeaves: React.FC = () => {
+import "react-toastify/dist/ReactToastify.css";
+
+const API_BASE = "http://localhost:8000/api";
+
+// Types pour le service Congé
+interface CreerCongeRequest {
+  employeId: string;
+  typeConge: string;
+  dateDebut: string;
+  dateFin: string;
+  raison: string;
+}
+
+interface Conge {
+  _id: string;
+  typeConge: string;
+  dateDebut: string;
+  dateFin: string;
+  motif: string;
+  etat: string;
+  commentaireResponsable?: string;
+  employe: { _id: string };
+}
+
+// Service pour créer un congé
+const creerConge = async (data: CreerCongeRequest) => {
+  const res = await axios.post(`${API_BASE}/conges/creerConge`, data, { withCredentials: true });
+  return res.data;
+};
+
+// Composant EmployeeLeaves
+export const EmployeeLeaves: React.FC = () => {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    typeConge: '',
-    dateDebut: '',
-    dateFin: '',
-    motif: ''
-  });
   const [loading, setLoading] = useState(false);
+  const [conges, setConges] = useState<Conge[]>([]);
+  const [formData, setFormData] = useState({
+    typeConge: "",
+    dateDebut: "",
+    dateFin: "",
+    motif: "",
+  });
+
+  // Charger les congés de l'employé
+useEffect(() => {
+  if (!user || !user.employer?._id) return; // sécurisation
+
+  const fetchConges = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/conges/getAllConges`, { withCredentials: true });
+
+      // sécuriser la récupération de l'id de l'employé
+      const userId = user.employer?._id;
+      if (!userId) return;
+
+      const userConges = res.data.filter((c: Conge) => c.employe?._id === userId);
+      setConges(userConges);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de la récupération des congés");
+    }
+  };
+
+  fetchConges();
+}, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [id]: value
-    }));
+    setFormData(prev => ({ ...prev, [id]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      // Ajouter automatiquement le matricule de l'utilisateur connecté
-      const requestData = {
-        ...formData,
-        matricule: user.matricule // Utilisation directe du matricule
-      };
-      // const response = await axios.post('http://localhost:8000/api/conges/creerConge', requestData);
 
-      const response = await axios.post('http://localhost:8000/api/conges/creerConge', requestData);
-      if (response.status === 201) {
-        toast.success('Demande de congé soumise avec succès!');
-        setFormData({ typeConge: '', dateDebut: '', dateFin: '', motif: '' });
+    const employeId = user?.employer?._id;
+    if (!employeId) {
+      toast.error("Impossible de récupérer l'identifiant de l'employé");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const requestData: CreerCongeRequest = {
+        employeId,
+        typeConge: formData.typeConge,
+        dateDebut: formData.dateDebut,
+        dateFin: formData.dateFin,
+        raison: formData.motif,
+      };
+
+      const res = await creerConge(requestData);
+
+      if (res.conge) {
+        toast.success("Demande de congé soumise !");
+        setFormData({ typeConge: "", dateDebut: "", dateFin: "", motif: "" });
         setShowForm(false);
+        setConges(prev => [...prev, res.conge]);
       }
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.response?.data?.message || 'Erreur lors de la soumission de la demande');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || "Erreur lors de la soumission");
     } finally {
       setLoading(false);
     }
   };
 
+  if (!user || !user.employer) {
+    return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200 text-gray-700">Chargement...</div>;
+  }
+
   return (
     <div className="space-y-6">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {/* Header du formulaire */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">Mes Demandes de Congé</h3>
-          <button 
+          <button
             onClick={() => setShowForm(!showForm)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
             disabled={loading}
           >
             {showForm ? (
               <>
-                <X className="h-4 w-4 mr-1" />
-                Annuler
+                <X className="h-4 w-4 mr-1" /> Annuler
               </>
             ) : (
               <>
-                <Calendar className="h-4 w-4 mr-1" />
-                Nouvelle demande
+                <Calendar className="h-4 w-4 mr-1" /> Nouvelle demande
               </>
             )}
           </button>
         </div>
 
-        {/* Formulaire de demande de congé */}
+        {/* Formulaire */}
         {showForm && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Nouvelle Demande de Congé</h3>
-            
-            {/* Affichage informatif du matricule */}
             <div className="mb-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Matricule:</strong> {user.matricule}
+                <strong>Matricule:</strong> {user.employer.matricule || "Non attribué"}
               </p>
             </div>
-            
+
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -497,6 +575,7 @@ const EmployeeLeaves: React.FC = () => {
                   />
                 </div>
               </div>
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
                 <textarea
@@ -506,24 +585,79 @@ const EmployeeLeaves: React.FC = () => {
                   value={formData.motif}
                   onChange={handleInputChange}
                   required
-                ></textarea>
+                />
               </div>
+
               <button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 disabled={loading}
               >
-                {loading ? 'Envoi en cours...' : 'Soumettre la demande'}
+                {loading ? "Envoi en cours..." : "Soumettre la demande"}
               </button>
             </form>
           </div>
         )}
 
-        {/* ... reste du code inchangé ... */}
+        {/* Historique des congés */}
+
+          {/* Historique des congés */}
+          <div className="mt-6">
+          <h4 className="text-md font-semibold mb-2">Historique de mes congés</h4>
+          {conges.length === 0 ? (
+          <p className="text-gray-500">Aucun congé enregistré pour le moment.</p>
+          ) : (
+          <>
+          {/* Congés approuvés */}
+          <div className="mb-4">
+          <h5 className="font-semibold text-green-700 mb-2">Congés approuvés</h5>
+          {conges.filter(c => c.etat?.toLowerCase() === "approved").length === 0 ? (
+          <p className="text-gray-500">Aucun congé approuvé pour le moment.</p>
+          ) : (
+          conges
+          .filter(c => c.etat?.toLowerCase() === "approved")
+          .map(c => (
+          <div key={c._id} className="p-3 mb-2 border rounded-lg bg-green-50">
+          <p><strong>Type :</strong> {c.typeConge}</p>
+          <p><strong>Dates :</strong> {new Date(c.dateDebut).toLocaleDateString()} - {new Date(c.dateFin).toLocaleDateString()}</p>
+          <p><strong>Motif :</strong> {c.motif}</p>
+          {c.commentaireResponsable && <p><strong>Commentaire RH :</strong> {c.commentaireResponsable}</p>}
+          </div>
+          ))
+          )}
+          </div>
+
+          {/* Congés non approuvés */}
+          <div className="mb-4">
+          <h5 className="font-semibold text-red-700 mb-2">Congés non approuvés</h5>
+          {conges.filter(c => c.etat?.toLowerCase() !== "approved").length === 0 ? (
+          <p className="text-gray-500">Tous les congés sont approuvés.</p>
+          ) : (
+          conges
+          .filter(c => c.etat?.toLowerCase() !== "approved")
+          .map(c => (
+          <div key={c._id} className="p-3 mb-2 border rounded-lg bg-red-50">
+          <p><strong>Type :</strong> {c.typeConge}</p>
+          <p><strong>Dates :</strong> {new Date(c.dateDebut).toLocaleDateString()} - {new Date(c.dateFin).toLocaleDateString()}</p>
+          <p><strong>Motif :</strong> {c.motif}</p>
+          {c.commentaireResponsable && <p><strong>Commentaire RH :</strong> {c.commentaireResponsable}</p>}
+          </div>
+          ))
+          )}
+          </div>
+          </>
+          )}
+          </div>
+
       </div>
     </div>
   );
 };
+
+
+
+
+
 const EmployeeAttendance: React.FC = () => {
   return (
     <div className="space-y-6">
@@ -574,13 +708,13 @@ const EmployeeGoals: React.FC = () => {
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text край-800">Projet E-commerce</h4>
+              <h4 className="font-medium text-gray-800">Projet E-commerce</h4>
               <span className="text-sm text-green-600 font-medium">90%</span>
             </div>
             <div className="w-full bg-green-200 rounded-full h-2">
               <div className="bg-green-600 h-2 rounded-full" style={{ width: '90%' }}></div>
             </div>
-            <p className="text-sm text-gray-600 край-2">Échéance: 15 septembre 2024</p>
+            <p className="text-sm text-gray-600 mt-2">Échéance: 15 septembre 2024</p>
           </div>
         </div>
       </div>
@@ -606,7 +740,7 @@ const EmployeePayslips: React.FC = () => {
                 <p className="text-sm text-gray-600">Salaire net: {payslip.amount}</p>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="px-3 py-1 край-100 text-green-800 rounded-full text-sm font-medium">
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   {payslip.status}
                 </span>
                 <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">

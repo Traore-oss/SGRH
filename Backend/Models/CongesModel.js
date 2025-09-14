@@ -1,8 +1,6 @@
 const mongoose = require("mongoose");
-
 const congeSchema = new mongoose.Schema({
   employe: { type: mongoose.Schema.Types.ObjectId, ref: "Utilisateur", required: true },
-  rh: { type: mongoose.Schema.Types.ObjectId, ref: "Utilisateur", required: true },
   typeConge: { type: String, required: true },
   dateDebut: { type: Date, required: true },
   dateFin: { type: Date, required: true },

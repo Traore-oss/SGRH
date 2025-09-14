@@ -377,6 +377,7 @@ const EmployeeProfile: React.FC = () => {
   );
 };
 import "react-toastify/dist/ReactToastify.css";
+import { getDemandesConge } from "../Components/CongesService";
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -388,16 +389,31 @@ interface CreerCongeRequest {
   dateFin: string;
   raison: string;
 }
-
-interface Conge {
+// Types
+interface Employee {
   _id: string;
-  typeConge: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+  email: string;
+  departement?: {
+    _id: string;
+    nom: string;
+  };
+}
+
+interface DemandeConge {
+  _id: string;
+  employe: string | Employee;
   dateDebut: string;
   dateFin: string;
-  motif: string;
+  typeConge: string;
+  nbJours: number;
+  motif?: string;
   etat: string;
   commentaireResponsable?: string;
-  employe: { _id: string };
+  dateSoumission: string;
+  dateValidation?: string;
 }
 
 // Service pour créer un congé
@@ -411,7 +427,7 @@ export const EmployeeLeaves: React.FC = () => {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [conges, setConges] = useState<Conge[]>([]);
+  const [conges, setConges] = useState<DemandeConge[]>([]);
   const [formData, setFormData] = useState({
     typeConge: "",
     dateDebut: "",
@@ -421,18 +437,11 @@ export const EmployeeLeaves: React.FC = () => {
 
   // Charger les congés de l'employé
 useEffect(() => {
-  if (!user || !user.employer?._id) return; // sécurisation
-
   const fetchConges = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/conges/getAllConges`, { withCredentials: true });
-
-      // sécuriser la récupération de l'id de l'employé
-      const userId = user.employer?._id;
-      if (!userId) return;
-
-      const userConges = res.data.filter((c: Conge) => c.employe?._id === userId);
-      setConges(userConges);
+      const demandesData = await getDemandesConge(); // backend renvoie toujours []
+      console.log(demandesData);
+      setConges(demandesData);
     } catch (err: any) {
       console.error(err);
       toast.error("Erreur lors de la récupération des congés");
@@ -440,7 +449,8 @@ useEffect(() => {
   };
 
   fetchConges();
-}, [user]);
+}, []);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -599,55 +609,100 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Historique des congés */}
+{/* Historique des congés */}
+<div className="mt-8">
+  <h4 className="text-lg font-bold text-gray-800 mb-6">Historique de mes congés</h4>
 
-          {/* Historique des congés */}
-          <div className="mt-6">
-          <h4 className="text-md font-semibold mb-2">Historique de mes congés</h4>
-          {conges.length === 0 ? (
-          <p className="text-gray-500">Aucun congé enregistré pour le moment.</p>
-          ) : (
-          <>
-          {/* Congés approuvés */}
-          <div className="mb-4">
-          <h5 className="font-semibold text-green-700 mb-2">Congés approuvés</h5>
-          {conges.filter(c => c.etat?.toLowerCase() === "approved").length === 0 ? (
-          <p className="text-gray-500">Aucun congé approuvé pour le moment.</p>
-          ) : (
-          conges
-          .filter(c => c.etat?.toLowerCase() === "approved")
-          .map(c => (
-          <div key={c._id} className="p-3 mb-2 border rounded-lg bg-green-50">
-          <p><strong>Type :</strong> {c.typeConge}</p>
-          <p><strong>Dates :</strong> {new Date(c.dateDebut).toLocaleDateString()} - {new Date(c.dateFin).toLocaleDateString()}</p>
-          <p><strong>Motif :</strong> {c.motif}</p>
-          {c.commentaireResponsable && <p><strong>Commentaire RH :</strong> {c.commentaireResponsable}</p>}
-          </div>
-          ))
-          )}
-          </div>
+  {conges.length === 0 ? (
+    <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <h3 className="mt-4 text-sm font-medium text-gray-900">Aucun congé enregistré</h3>
+      <p className="mt-1 text-sm text-gray-500">Vous n'avez fait aucune demande de congé pour le moment.</p>
+    </div>
+  ) : (
+    <div className="bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type de congé
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Période
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Durée
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Motif
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Commentaire RH
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                État
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {conges.map((c) => {
+              // Calcul de la durée en jours
+              const dateDebut = new Date(c.dateDebut);
+              const dateFin = new Date(c.dateFin);
+              const duree = Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24)) + 1;
+              
+              // Définir la couleur du badge selon l'état
+              let badgeColor = "";
+              if (c.etat?.toLowerCase() === "approuvé") {
+                badgeColor = "bg-green-100 text-green-800";
+              } else if (c.etat?.toLowerCase() === "refusé") {
+                badgeColor = "bg-red-100 text-red-800";
+              } else if (c.etat?.toLowerCase() === "en attente") {
+                badgeColor = "bg-yellow-100 text-yellow-800";
+              } else {
+                badgeColor = "bg-gray-100 text-gray-800";
+              }
 
-          {/* Congés non approuvés */}
-          <div className="mb-4">
-          <h5 className="font-semibold text-red-700 mb-2">Congés non approuvés</h5>
-          {conges.filter(c => c.etat?.toLowerCase() !== "approved").length === 0 ? (
-          <p className="text-gray-500">Tous les congés sont approuvés.</p>
-          ) : (
-          conges
-          .filter(c => c.etat?.toLowerCase() !== "approved")
-          .map(c => (
-          <div key={c._id} className="p-3 mb-2 border rounded-lg bg-red-50">
-          <p><strong>Type :</strong> {c.typeConge}</p>
-          <p><strong>Dates :</strong> {new Date(c.dateDebut).toLocaleDateString()} - {new Date(c.dateFin).toLocaleDateString()}</p>
-          <p><strong>Motif :</strong> {c.motif}</p>
-          {c.commentaireResponsable && <p><strong>Commentaire RH :</strong> {c.commentaireResponsable}</p>}
-          </div>
-          ))
-          )}
-          </div>
-          </>
-          )}
-          </div>
+              return (
+                <tr key={c._id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{c.typeConge}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {new Date(c.dateDebut).toLocaleDateString('fr-FR')} 
+                      <span className="text-gray-400 mx-1">→</span>
+                      {new Date(c.dateFin).toLocaleDateString('fr-FR')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{duree} jour{duree > 1 ? 's' : ''}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 max-w-xs truncate">{c.motif}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-500 max-w-xs truncate">
+                      {c.commentaireResponsable || <span className="text-gray-400">-</span>}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}`}>
+                      {c.etat}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )}
+</div>
 
       </div>
     </div>

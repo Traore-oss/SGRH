@@ -1,7 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
-// /* eslint-disable react-refresh/only-export-components */ 
-import React, { useState, useEffect } from "react";
-import { Pie, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -12,20 +8,19 @@ import {
   BarElement,
   Title,
 } from "chart.js";
+import { useEffect, useState } from "react";
+import { Bar, Pie } from "react-chartjs-2";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// 🔹 Interface pour un département
 export interface Departement {
   _id: string;
   nom: string;
 }
 
-// 🔹 Interface pour un employé tel que retourné par l'API
 export interface Employee {
-  isActive: any;
   _id: string;
   matricule: string;
   nom: string;
@@ -34,17 +29,14 @@ export interface Employee {
   poste: string;
   departement?: Departement;
   salaire: string | number;
-  typeContrat: 'CDI' | 'CDD';
+  typeContrat: "CDI" | "CDD";
   role: string;
   photo?: string;
 }
 
-interface AttendanceRecord {
+export interface AttendanceRecord {
   _id?: string;
-  employeeId: string;
-  matricule: string;
-  nom: string;
-  prenom: string;
+  employe: Employee;
   date: string;
   statut: "Présent" | "Absent" | "Retard";
   heureArrivee: string;
@@ -53,84 +45,63 @@ interface AttendanceRecord {
   retard: string;
 }
 
-// 🔹 Récupérer tous les employés
-export const getEmployees = async (): Promise<Employee[]> => {
+// === Fonctions API ===
+const getEmployees = async (): Promise<Employee[]> => {
   try {
-    const res = await fetch(`${API_BASE}/api/Users/`, {
-      credentials: 'include',
-    });
-    if (!res.ok) throw new Error('Erreur lors de la récupération des employés');
-    const data = await res.json();
-    return data;
+    const res = await fetch(`${API_BASE}/api/Users/`, { credentials: "include" });
+    if (!res.ok) throw new Error("Erreur lors de la récupération des employés");
+    return await res.json();
   } catch (err) {
     console.error(err);
     return [];
   }
 };
 
-// 🔹 Fonctions API pour la gestion des présences
 const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> => {
   try {
-    const res = await fetch(`${API_BASE}/api/pointages/getByDate?date=${date}`, {
-      credentials: 'include',
-    });
-    if (!res.ok) throw new Error('Erreur lors de la récupération des présences');
-    const data = await res.json();
-    return data;
+    const res = await fetch(`${API_BASE}/api/pointages/getAttendances?date=${date}`, { credentials: "include" });
+    if (!res.ok) throw new Error("Erreur lors de la récupération des présences");
+    return await res.json();
   } catch (err) {
     console.error(err);
     return [];
   }
 };
 
-const addAttendance = async (matricule: string, date: string): Promise<AttendanceRecord | null> => {
-  try {
-    const res = await fetch(`${API_BASE}/api/pointages/addAttendance`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ matricule, date }),
-    });
-    if (!res.ok) throw new Error('Erreur lors de l\'ajout de la présence');
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error(err);
-    return null;
-  }
-};
-
-const updatePresence = async (matricule: string, date: string, checked: boolean): Promise<AttendanceRecord | null> => {
+const updatePresence = async (
+  employeId: string,
+  date: string,
+  checked: boolean
+): Promise<AttendanceRecord | null> => {
   try {
     const res = await fetch(`${API_BASE}/api/pointages/updatePresence`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ matricule, date, checked }),
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ employeId, date, checked }),
     });
-    if (!res.ok) throw new Error('Erreur lors de la mise à jour de la présence');
-    const data = await res.json();
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Erreur lors de la mise à jour de la présence");
+    }
+    const data: AttendanceRecord = await res.json();
     return data;
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    console.error("updatePresence error:", err.message || err);
     return null;
   }
 };
 
-const setDeparture = async (matricule: string, date: string): Promise<AttendanceRecord | null> => {
+const setDeparture = async (employeId: string, date: string): Promise<AttendanceRecord | null> => {
   try {
     const res = await fetch(`${API_BASE}/api/pointages/setDeparture`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ matricule, date }),
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ employeId, date }),
     });
-    if (!res.ok) throw new Error('Erreur lors de l\'enregistrement du départ');
-    const data = await res.json();
+    if (!res.ok) throw new Error("Erreur lors de l'enregistrement du départ");
+    const data: AttendanceRecord = await res.json();
     return data;
   } catch (err) {
     console.error(err);
@@ -138,506 +109,478 @@ const setDeparture = async (matricule: string, date: string): Promise<Attendance
   }
 };
 
-const deleteAttendance = async (id: string): Promise<boolean> => {
-  try {
-    const res = await fetch(`${API_BASE}/api/pointages/deleteAttendance/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    if (!res.ok) throw new Error('Erreur lors de la suppression de la présence');
-    return true;
-  } catch (err) {
-    console.error(err);
-    return false;
-  }
-};
-
+// === Composant principal ===
 export const AttendanceManager: React.FC = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [time, setTime] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("Tous");
-  const [filterPeriod, setFilterPeriod] = useState("mois");
+  const [filterPeriod, setFilterPeriod] = useState("jour");
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
-  const [time, setTime] = useState(new Date());
-  const [notification, setNotification] = useState<{type: string, message: string} | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Afficher une notification temporaire
-  const showNotification = (type: string, message: string) => {
+  const showNotification = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Mise à jour de l'heure en temps réel
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Charger les données depuis l'API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        
-        // Récupération des employés depuis l'API
         const employeesData = await getEmployees();
         setEmployees(employeesData);
-        
-        // Récupération des présences pour la date actuelle
+
         const today = new Date().toISOString().split("T")[0];
         const attendanceData = await getAttendancesByDate(today);
-        
-        // Si des présences existent déjà pour aujourd'hui
-        if (attendanceData.length > 0) {
-          setAttendance(attendanceData);
-        } else {
-          // Créer des enregistrements de présence par défaut pour tous les employés
-          const defaultAttendance = employeesData.map(emp => ({
-            employeeId: emp._id,
-            matricule: emp.matricule,
-            nom: emp.nom,
-            prenom: emp.prenom,
+
+        const mergedAttendance = employeesData.map(emp => {
+          const record = attendanceData.find(a => a.employe._id === emp._id);
+          if (record) return { ...record, employe: emp };
+          return {
+            employe: emp,
             date: today,
-            statut: "Absent" as const,
+            statut: "Absent",
             heureArrivee: "-",
             heureDepart: "-",
             heuresTravaillees: "-",
             retard: "-",
-          }));
-          
-          // Ajouter chaque présence au backend
-          for (const record of defaultAttendance) {
-            await addAttendance(record.matricule, record.date);
-          }
-          
-          setAttendance(defaultAttendance);
-        }
-        
+          };
+        });
+
+        setAttendance(mergedAttendance);
         setIsLoading(false);
         showNotification("success", "Données chargées avec succès");
-      } catch (error) {
+      } catch {
         setIsLoading(false);
         showNotification("error", "Erreur lors du chargement des données");
       }
     };
-
     fetchData();
   }, []);
 
-  // Marquer présence / retard
   const togglePresence = async (record: AttendanceRecord, checked: boolean) => {
-    try {
-      const updatedRecord = await updatePresence(record.matricule, record.date, checked);
-      
-      if (updatedRecord) {
-        setAttendance((prev) => 
-          prev.map((r) => 
-            r.matricule === record.matricule && r.date === record.date ? updatedRecord : r
-          )
-        );
-        showNotification("success", "Présence mise à jour avec succès");
-      } else {
-        showNotification("error", "Erreur lors de la mise à jour de la présence");
-      }
-    } catch (error) {
+    const updatedRecord = await updatePresence(record.employe._id, record.date, checked);
+    if (updatedRecord) {
+      setAttendance(prev =>
+        prev.map(r => r.employe._id === record.employe._id && r.date === record.date
+          ? { ...updatedRecord, employe: record.employe }
+          : r
+        )
+      );
+      showNotification("success", "Présence mise à jour avec succès");
+    } else {
       showNotification("error", "Erreur lors de la mise à jour de la présence");
     }
   };
 
-  // Marquer départ
   const handleSetDeparture = async (record: AttendanceRecord) => {
     if (record.statut === "Absent") {
-      showNotification("error", "Veuillez cocher la case d'arrivée avant de marquer le départ !");
+      showNotification("error", "Veuillez cocher l'arrivée avant de marquer le départ !");
       return;
     }
-    
-    try {
-      const updatedRecord = await setDeparture(record.matricule, record.date);
-      
-      if (updatedRecord) {
-        setAttendance((prev) => 
-          prev.map((r) => 
-            r.matricule === record.matricule && r.date === record.date ? updatedRecord : r
-          )
-        );
-        showNotification("success", "Départ enregistré avec succès");
-      } else {
-        showNotification("error", "Erreur lors de l'enregistrement du départ");
-      }
-    } catch (error) {
+    const updatedRecord = await setDeparture(record.employe._id, record.date);
+    if (updatedRecord) {
+      setAttendance(prev =>
+        prev.map(r => r.employe._id === record.employe._id && r.date === record.date
+          ? { ...updatedRecord, employe: record.employe }
+          : r
+        )
+      );
+      showNotification("success", "Départ enregistré avec succès");
+    } else {
       showNotification("error", "Erreur lors de l'enregistrement du départ");
     }
   };
 
-  // Supprimer une présence
-  const handleDeleteAttendance = async (id: string) => {
-    try {
-      const success = await deleteAttendance(id);
-      if (success) {
-        setAttendance(prev => prev.filter(record => record._id !== id));
-        showNotification("success", "Présence supprimée avec succès");
-      } else {
-        showNotification("error", "Erreur lors de la suppression de la présence");
-      }
-    } catch (error) {
-      showNotification("error", "Erreur lors de la suppression de la présence");
-    }
-  };
-
-  // Filtrer les données
-  const filteredAttendance = attendance.filter((r) => {
+  // Correction de l'erreur de recherche - vérification des propriétés
+  const filteredAttendance = attendance.filter(r => {
     const recordDate = new Date(r.date);
     const selectedDate = new Date(filterDate);
-
-    let dateMatch = true;
-    if (filterPeriod === "jour") {
-      dateMatch = recordDate.toISOString().split("T")[0] === selectedDate.toISOString().split("T")[0];
-    } else if (filterPeriod === "semaine") {
-      const getWeek = (d: Date) => {
-        const onejan = new Date(d.getFullYear(), 0, 1);
-        return Math.ceil((((d.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7));
-      };
-      dateMatch = getWeek(recordDate) === getWeek(selectedDate) && recordDate.getFullYear() === selectedDate.getFullYear();
-    } else {
-      dateMatch = recordDate.getMonth() === selectedDate.getMonth() && recordDate.getFullYear() === selectedDate.getFullYear();
-    }
+    const dateMatch = filterPeriod === "jour"
+      ? recordDate.toISOString().split("T")[0] === selectedDate.toISOString().split("T")[0]
+      : filterPeriod === "semaine"
+        ? Math.ceil(((recordDate.getTime() - new Date(recordDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7) ===
+          Math.ceil(((selectedDate.getTime() - new Date(selectedDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7)
+        : recordDate.getMonth() === selectedDate.getMonth() && recordDate.getFullYear() === selectedDate.getFullYear();
 
     if (!dateMatch) return false;
     if (filterStatus !== "Tous" && r.statut !== filterStatus) return false;
     
-    // Filtre de recherche
-    if (searchTerm && !r.matricule.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !r.nom.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !r.prenom.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
+    // Correction: Vérification que les propriétés existent avant d'appeler toLowerCase()
+    if (searchTerm) {
+      const nom = r.employe?.nom || "";
+      const prenom = r.employe?.prenom || "";
+      const matricule = r.employe?.matricule || "";
+      
+      const searchTermLower = searchTerm.toLowerCase();
+      if (!nom.toLowerCase().includes(searchTermLower) &&
+          !prenom.toLowerCase().includes(searchTermLower) &&
+          !matricule.toLowerCase().includes(searchTermLower)) {
+        return false;
+      }
     }
-
+    
     return true;
   });
 
   const stats = {
     total: filteredAttendance.length,
-    present: filteredAttendance.filter((r) => r.statut === "Présent").length,
-    retard: filteredAttendance.filter((r) => r.statut === "Retard").length,
-    absent: filteredAttendance.filter((r) => r.statut === "Absent").length,
+    present: filteredAttendance.filter(r => r.statut === "Présent").length,
+    retard: filteredAttendance.filter(r => r.statut === "Retard").length,
+    absent: filteredAttendance.filter(r => r.statut === "Absent").length,
   };
 
   const pieData = {
     labels: ["Présents", "Retards", "Absents"],
-    datasets: [
-      { 
-        data: [stats.present, stats.retard, stats.absent], 
-        backgroundColor: ["#16a34a", "#f59e0b", "#dc2626"],
-        borderWidth: 0,
-        hoverOffset: 12
-      }
-    ],
+    datasets: [{
+      data: [stats.present, stats.retard, stats.absent],
+      backgroundColor: ["#10B981", "#F59E0B", "#EF4444"],
+      borderWidth: 0,
+      hoverOffset: 12
+    }]
   };
 
   const barData = {
     labels: ["Présents", "Retards", "Absents"],
-    datasets: [
-      { 
-        label: "Nombre d'employés", 
-        data: [stats.present, stats.retard, stats.absent], 
-        backgroundColor: ["#16a34a", "#f59e0b", "#dc2626"],
-        borderRadius: 6,
-        borderSkipped: false,
-      }
-    ],
+    datasets: [{
+      label: "Nombre d'employés",
+      data: [stats.present, stats.retard, stats.absent],
+      backgroundColor: ["#10B981", "#F59E0B", "#EF4444"],
+      borderRadius: 8,
+      borderSkipped: false
+    }]
   };
 
   const pieOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'bottom' as const,
-        labels: {
-          usePointStyle: true,
-          padding: 20,
-          font: {
-            size: 12
-          }
-        }
-      },
-    },
+      legend: { 
+        position: "bottom" as const, 
+        labels: { 
+          usePointStyle: true, 
+          padding: 20, 
+          font: { size: 12 },
+          color: "#374151"
+        } 
+      }
+    }
   };
 
   const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false
-      },
+    plugins: { 
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#1F2937",
+        titleColor: "#F9FAFB",
+        bodyColor: "#F9FAFB",
+        cornerRadius: 8,
+        displayColors: false
+      }
     },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1
-        }
+    scales: { 
+      y: { 
+        beginAtZero: true, 
+        ticks: { stepSize: 1 },
+        grid: { color: "#E5E7EB" }
+      },
+      x: {
+        grid: { display: false }
       }
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 px-2 sm:py-6 sm:px-4 lg:py-8 lg:px-6">
-      <div className="max-w-7xl mx-auto">
-        {/* En-tête */}
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Gestion des Présences</h1>
-          <div className="text-sm sm:text-base text-gray-600">
-            {time.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | 
-            <span className="ml-1 sm:ml-2 font-mono">{time.toLocaleTimeString('fr-FR')}</span>
-          </div>
-        </div>
-
-        {/* Notification */}
-        {notification && (
-          <div className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg text-white text-sm sm:text-base ${
-            notification.type === 'error' ? 'bg-red-500' : 
-            notification.type === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
-          }`}>
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          notification.type === "success" 
+            ? "bg-green-50 text-green-800 border border-green-200" 
+            : "bg-red-50 text-red-800 border border-red-200"
+        }`}>
+          <div className="flex items-center">
+            {notification.type === "success" ? (
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            )}
             {notification.message}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Indicateur de chargement */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg flex items-center text-sm sm:text-base">
-              <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-blue-500 mr-2 sm:mr-3"></div>
-              <span>Chargement des données...</span>
-            </div>
-          </div>
-        )}
+      {/* En-tête responsive */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Présences</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Suivi des arrivées, départs et retards des employés</p>
+        </div>
+        <div className="bg-white p-3 sm:p-4 rounded-lg sm:rounded-xl shadow-sm w-full md:w-auto">
+          <p className="text-base sm:text-lg font-semibold text-gray-800 font-mono">
+            {time.toLocaleTimeString('fr-FR')}
+          </p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            {time.toLocaleDateString('fr-FR', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+          </p>
+        </div>
+      </div>
 
-        {/* Cartes statistiques */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-blue-100">
-            <div className="flex items-center">
-              <div className="rounded-full bg-blue-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Total Employés</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{employees.length}</p>
-              </div>
-            </div>
-          </div>
+      {/* Statistiques résumées responsive */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5 mb-6 md:mb-8">
+        <div className="bg-white p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl shadow-sm border-l-4 border-blue-500">
+          <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-xs sm:text-sm text-gray-600 mt-1">Total employés</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl shadow-sm border-l-4 border-green-500">
+          <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.present}</div>
+          <div className="text-xs sm:text-sm text-gray-600 mt-1">Présents</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl shadow-sm border-l-4 border-yellow-500">
+          <div className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.retard}</div>
+          <div className="text-xs sm:text-sm text-gray-600 mt-1">Retards</div>
+        </div>
+        <div className="bg-white p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl shadow-sm border-l-4 border-red-500">
+          <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.absent}</div>
+          <div className="text-xs sm:text-sm text-gray-600 mt-1">Absents</div>
+        </div>
+      </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-green-100">
-            <div className="flex items-center">
-              <div className="rounded-full bg-green-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Présents</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{stats.present}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-yellow-100">
-            <div className="flex items-center">
-              <div className="rounded-full bg-yellow-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 01118 0z"></path>
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Retards</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{stats.retard}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-5 border border-red-100">
-            <div className="flex items-center">
-              <div className="rounded-full bg-red-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Absents</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">{stats.absent}</p>
-              </div>
-            </div>
+      {/* Graphiques responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6 mb-6 md:mb-8">
+        <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-md">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 10a8 8 0 1116 0 8 8 0 01-16 0zm8-6a6 6 0 00-6 6c0 1.887.454 3.665 1.257 5.234a.5.5 0 00.656.254L10 14.21l4.087 2.278a.5.5 0 00.656-.254A5.98 5.98 0 0016 10a6 6 0 00-6-6z" />
+            </svg>
+            Répartition des présences
+          </h3>
+          <div className="h-60 sm:h-64 md:h-72">
+            <Pie data={pieData} options={pieOptions} />
           </div>
         </div>
-
-        {/* Diagrammes */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6 mb-6 sm:mb-8">
-          <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 text-center">Répartition des présences</h3>
-            <div className="h-60 sm:h-72 lg:h-80">
-              <Pie data={pieData} options={pieOptions} />
-            </div>
-          </div>
-          <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-lg sm:rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 text-center">Statistiques des présences</h3>
-            <div className="h-60 sm:h-72 lg:h-80">
-              <Bar data={barData} options={barOptions} />
-            </div>
+        <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-md">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+            </svg>
+            Statistiques de présence
+          </h3>
+          <div className="h-60 sm:h-64 md:h-72">
+            <Bar data={barData} options={barOptions} />
           </div>
         </div>
+      </div>
 
-        {/* Filtres et recherche */}
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-5 lg:p-6 mb-6 sm:mb-8 border border-gray-100">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Filtres et Recherche</h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Rechercher un employé</label>
-              <input 
-                type="text" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                placeholder="Matricule, nom ou prénom" 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+      {/* Filtres responsive */}
+      <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-md mb-4 sm:mb-5 md:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Filtres</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Recherche</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Nom, prénom ou matricule"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-8 sm:pl-10 w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
               />
             </div>
-            
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Période</label>
-              <select 
-                value={filterPeriod} 
-                onChange={(e) => setFilterPeriod(e.target.value)} 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              >
-                <option value="jour">Jour</option>
-                <option value="semaine">Semaine</option>
-                <option value="mois">Mois</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input 
-                type="date" 
-                value={filterDate} 
-                onChange={(e) => setFilterDate(e.target.value)} 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+          </div>
+          
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Statut</label>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
+            >
+              <option value="Tous">Tous les statuts</option>
+              <option value="Présent">Présent</option>
+              <option value="Absent">Absent</option>
+              <option value="Retard">Retard</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Période</label>
+            <select
+              value={filterPeriod}
+              onChange={e => setFilterPeriod(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
+            >
+              <option value="jour">Jour</option>
+              <option value="semaine">Semaine</option>
+              <option value="mois">Mois</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Date</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={e => setFilterDate(e.target.value)}
+                className="pl-8 sm:pl-10 w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
               />
-            </div>
-            
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Statut</label>
-              <select 
-                value={filterStatus} 
-                onChange={(e) => setFilterStatus(e.target.value)} 
-                className="w-full px-3 py-2 sm:px-4 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              >
-                <option value="Tous">Tous les statuts</option>
-                <option value="Présent">Présent</option>
-                <option value="Retard">Retard</option>
-                <option value="Absent">Absent</option>
-              </select>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Tableau des présences */}
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden border border-gray-100">
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-800">Liste des présences</h3>
-            <span className="text-xs sm:text-sm text-gray-500">{filteredAttendance.length} employé(s) trouvé(s)</span>
+      {/* Tableau responsive */}
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-md overflow-hidden">
+        {isLoading ? (
+          <div className="p-8 sm:p-10 md:p-12 text-center">
+            <div className="inline-block animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            <p className="mt-3 sm:mt-4 text-gray-600 text-sm sm:text-base">Chargement des données...</p>
           </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matricule</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom & Prénom</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Date</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Heure Arrivée</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Heure Départ</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Heures Travaillées</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Retard</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Présence</th>
-                  <th scope="col" className="px-4 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAttendance.length > 0 ? (
-                  filteredAttendance.map((r) => (
-                  <tr key={r._id || `${r.matricule}-${r.date}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.matricule}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-900">{r.nom} {r.prenom}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{r.date}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full
-                          ${r.statut === "Présent" ? "bg-green-100 text-green-800" : 
-                            r.statut === "Retard" ? "bg-yellow-100 text-yellow-800" : 
-                            "bg-red-100 text-red-800"}`}>
-                          {r.statut}
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      #
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nom & Prénom
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                      Matricule
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Statut
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                      Arrivée
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                      Départ
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Heures
+                    </th>
+                    <th scope="col" className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredAttendance.map((record, idx) => (
+                    <tr key={record.employe._id} className="hover:bg-gray-50 transition-colors duration-150">
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {idx + 1}
+                      </td>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div>
+                          <div className="font-medium">{record.employe.nom} {record.employe.prenom}</div>
+                          <div className="text-xs text-gray-500 sm:hidden">{record.employe.matricule}</div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                        {record.employe.matricule}
+                      </td>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-xs font-medium ${
+                          record.statut === "Présent" 
+                            ? "bg-green-100 text-green-800" 
+                            : record.statut === "Retard" 
+                            ? "bg-yellow-100 text-yellow-800" 
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {record.statut}
                         </span>
                       </td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">{r.heureArrivee}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">{r.heureDepart}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden xl:table-cell">{r.heuresTravaillees}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500 hidden xl:table-cell">{r.retard}</td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={r.statut !== "Absent"} 
-                            onChange={(e) => togglePresence(r, e.target.checked)} 
-                            className="sr-only peer" 
-                          />
-                          <div className={`w-10 h-5 sm:w-11 sm:h-6 rounded-full peer 
-                            ${r.statut !== "Absent" ? 'bg-blue-600' : 'bg-gray-200'} 
-                            peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] 
-                            after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all`}
-                          ></div>
-                        </label>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-900 hidden md:table-cell">
+                        {record.heureArrivee}
                       </td>
-                      <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button 
-                          onClick={() => handleSetDeparture(r)} 
-                          disabled={r.statut === "Absent"}
-                          className={`px-2 py-1 sm:px-3 sm:py-1 rounded-md text-xs sm:text-sm font-medium flex items-center
-                            ${r.statut === "Absent" ? 
-                              "bg-gray-200 text-gray-400 cursor-not-allowed" : 
-                              "bg-purple-600 text-white hover:bg-purple-700"}`}
-                        >
-                          <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                          </svg>
-                          Départ
-                        </button>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-900 hidden md:table-cell">
+                        {record.heureDepart}
+                      </td>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {record.heuresTravaillees}h
+                      </td>
+                      <td className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                          {/* Checkbox moderne pour la présence - version responsive */}
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={record.statut !== "Absent"} 
+                              onChange={e => togglePresence(record, e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-4 sm:peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <span className="ml-2 text-xs sm:text-sm font-medium text-gray-900 hidden sm:block">
+                              {record.statut !== "Absent" ? "Présent" : "Absent"}
+                            </span>
+                          </label>
+                          
+                          {/* Bouton moderne pour le départ */}
+                          <button 
+                            onClick={() => handleSetDeparture(record)}
+                            disabled={record.statut === "Absent"}
+                            className={`inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                              record.statut === "Absent" 
+                                ? "bg-gray-200 text-gray-500 cursor-not-allowed" 
+                                : "bg-indigo-600 text-white hover:bg-indigo-700"
+                            }`}
+                          >
+                            <svg className="-ml-0.5 mr-1 h-3 w-3 sm:h-4 sm:w-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                            <span className="hidden sm:inline">Départ</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-6 sm:px-6 sm:py-8 text-center">
-                      <div className="flex flex-col items-center justify-center text-gray-500">
-                        <svg className="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <p className="text-sm sm:text-base font-medium">Aucun employé trouvé</p>
-                        <p className="mt-1 text-xs sm:text-sm">Aucune donnée ne correspond à vos critères de recherche</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {filteredAttendance.length === 0 && (
+              <div className="p-8 sm:p-10 md:p-12 text-center">
+                <svg className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="mt-4 text-base sm:text-lg font-medium text-gray-900">Aucun enregistrement trouvé</h3>
+                <p className="mt-1 text-sm text-gray-500">Essayez de modifier vos critères de recherche.</p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
 };
+
+export default AttendanceManager;

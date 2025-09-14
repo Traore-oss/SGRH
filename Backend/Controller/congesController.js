@@ -1,4 +1,3 @@
-const { log } = require("console");
 const Conge = require("../Models/CongesModel");
 const User = require("../Models/usersModel");
 const nodemailer = require("nodemailer");
@@ -6,40 +5,31 @@ const nodemailer = require("nodemailer");
 // ➕ Créer un congé
 exports.creerConge = async (req, res) => {
   try {
-    const { employeId, typeConge, dateDebut, dateFin, raison } = req.body;
+    const { typeConge, dateDebut, dateFin, raison } = req.body;
 
     // Vérification des champs obligatoires
-    const champsManquants = [];
-    if (!employeId) champsManquants.push("employeId");
-    if (!typeConge) champsManquants.push("typeConge");
-    if (!dateDebut) champsManquants.push("dateDebut");
-    if (!dateFin) champsManquants.push("dateFin");
-
-    if (champsManquants.length > 0) {
-      return res.status(400).json({ 
-        message: `Champs obligatoires manquants: ${champsManquants.join(", ")}` 
-      });
+    if (!typeConge || !dateDebut || !dateFin) {
+      return res.status(400).json({ message: "Tous les champs requis doivent être remplis" });
     }
 
-    // Vérification des dates
     const debut = new Date(dateDebut);
     const fin = new Date(dateFin);
+
     if (fin < debut) {
       return res.status(400).json({ message: "La date de fin doit être après la date de début" });
     }
 
-    // Vérification de l'employé
-    const employe = await User.findById(employeId);
+    // ✅ Utilisateur connecté
+    const employe = req.user;
+
     if (!employe) {
-      return res.status(404).json({ message: "Employé introuvable" });
+      return res.status(404).json({ message: "Utilisateur connecté introuvable" });
     }
 
-    // Vérification du RH responsable
     if (!employe.employer?.createdByrh) {
       return res.status(400).json({ message: "Cet employé n'a pas de RH assigné" });
     }
 
-    // Création du congé
     const nouveauConge = new Conge({
       employe: employe._id,
       rh: employe.employer.createdByrh,
@@ -51,12 +41,14 @@ exports.creerConge = async (req, res) => {
     });
 
     await nouveauConge.save();
+
     res.status(201).json({ message: "Congé créé avec succès", conge: nouveauConge });
 
   } catch (err) {
     res.status(500).json({ message: "Erreur lors de la création du congé", error: err.message });
   }
 };
+
 
 
 // ✅ Approuver un congé
@@ -123,42 +115,46 @@ const sendEmail = async (to, subject, text) => {
 
   await transporter.sendMail({ from: process.env.SMTP_USER, to, subject, text });
 };
-// 🔄 Récupérer tous les congés
+
+// === Récupérer tous les congés ===
 exports.getAllConges = async (req, res) => {
   try {
-    // ID du RH connecté (via middleware JWT par ex.)
-    const rhId = req.user._id;
-
-    const conges = await Conge.find({ rh: rhId })
-      .populate('employe', 'nom prenom employer')
-      .populate('rh', 'nom prenom email'); // utile pour affichage
-
-    res.status(200).json(conges);
-  } catch (err) {
-    res.status(500).json({ 
-      message: "Erreur lors de la récupération des congés", 
-      error: err.message 
-    });
-  }
-};
-
-// 🔄 Récupérer les congés d’un employé
-exports.getCongesEmploye = async (req, res) => {
-  try {
-    const employeId = req.user.employer?._id; // ID de l’employé connecté
-    if (!employeId) {
-      return res.status(400).json({ message: "Impossible de récupérer l'identifiant de l'employé" });
+    // sécurité : vérifier authentification
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: "Utilisateur non authentifié" });
     }
 
-    const conges = await Conge.find({ employe: employeId })
-      .populate('employe', 'nom prenom matricule')
-      .populate('rh', 'nom prenom email');
+    let conges;
 
-    res.status(200).json(conges);
+    if (req.user.role === "RH") {
+      // ➡️ RH : récupérer tous les employés créés par ce RH
+      const employes = await User.find({
+        "employer.createdByrh": req.user._id,
+      }).select("_id");
+
+      const employeIds = employes.map((emp) => emp._id);
+
+      if (employeIds.length === 0) {
+        return res.status(200).json([]);
+      }
+
+      // ➡️ Récupérer les congés des employés gérés par ce RH
+      conges = await Conge.find({ employe: { $in: employeIds } })
+        .populate("employe", "nom prenom employer")
+        .sort({ createdAt: -1 }); // du plus récent au plus ancien
+    } else {
+      // ➡️ Employé : voir uniquement ses propres congés
+      conges = await Conge.find({ employe: req.user._id })
+        .populate("employe", "nom prenom employer")
+        .sort({ createdAt: -1 });
+    }
+
+    return res.status(200).json(conges);
   } catch (err) {
-    res.status(500).json({
+    console.error("getAllConges error:", err);
+    return res.status(500).json({
       message: "Erreur lors de la récupération des congés",
-      error: err.message
+      error: err.message,
     });
   }
 };

@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-// Dans ServiceEmployer.ts ou un fichier de types partagé
+
+// =======================
+// Interfaces
+// =======================
 export interface Departement {
   _id: string;
   nom: string;
@@ -13,33 +16,27 @@ export interface Employee {
   nom: string;
   prenom: string;
   email: string;
-  password?: string; // Ne devrait pas être envoyé au frontend idéalement
-  genre: 'Homme' | 'Femme' | 'Autre';
-  date_naissance?: string; // Ou Date
-  telephone?: string;
-  adresse?: string;
-  photo?: string;
   role: 'Admin' | 'RH' | 'Employe';
   isActive: boolean;
-  // Champs spécifiques à l'employé
   matricule?: string;
   poste?: string;
-  salaire?: number;
-  typeContrat?: 'CDI' | 'CDD' | 'Stage' | 'Freelance';
-  statut?: 'Actif' | 'Inactif' | 'Congé' | 'Suspendu';
-  departement?: Departement; // Ou juste l'ID si pas peuplé
-  numeroCNSS?: string;
-  numeroCIN?: string;
-  banque?: string;
-  numeroCompte?: string;
-  date_embauche?: string; // Ou Date
-  joursCongesRestants?: number;
-  derniereEvaluation?: string; // Ou Date
-  notes?: string;
+  departement?: Departement;
+}
+
+export interface Performance {
+  _id?: string;
+  employe: string | Employee;
+  objectif: string;
+  description: string;
+  realisation: 'Non démarré' | 'En cours' | 'Terminé';
+  evaluation: 'Excellent' | 'Bon' | 'Moyen' | 'Insuffisant';
   createdAt?: string;
   updatedAt?: string;
 }
 
+// =======================
+// Formations / Participants
+// =======================
 export interface Formation {
   _id?: string;
   titre: string;
@@ -69,9 +66,7 @@ export interface ParticipantFormation {
     prenom: string;
     matricule: string;
     poste: string;
-    departement?: {
-      nom: string;
-    };
+    departement?: { nom: string };
   };
   formation: string;
   statut: 'inscrit' | 'présent' | 'absent' | 'en_attente';
@@ -80,144 +75,99 @@ export interface ParticipantFormation {
   dateInscription: string;
 }
 
-// Récupérer toutes les formations
+// =======================
+// Performances CRUD
+// =======================
+export const updatePerformance = async (
+  id: string,
+  perf: Omit<Performance, 'createdAt' | 'updatedAt'>
+): Promise<Performance> => {
+  const performanceData = {
+    ...perf,
+    employe: typeof perf.employe === 'object' ? perf.employe._id : perf.employe
+  };
+
+  const response = await fetch(`${API_BASE}/api/performances/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(performanceData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Erreur lors de la modification de la performance');
+  }
+
+  return response.json();
+};
+// Formations CRUD
+// =======================
 export const getFormations = async (): Promise<Formation[]> => {
-  try {
-    const response = await axios.get(`${API_BASE}/api/formations`, {
-      withCredentials: true,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des formations:', error);
-    throw new Error('Impossible de charger les formations');
-  }
+  const res = await axios.get(`${API_BASE}/api/formations`, { withCredentials: true });
+  return res.data;
 };
 
-// Récupérer une formation par ID
 export const getFormationById = async (id: string): Promise<Formation> => {
-  try {
-    const response = await axios.get(`${API_BASE}/api/formations/${id}`, {
-      withCredentials: true,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la récupération de la formation:', error);
-    throw new Error('Formation non trouvée');
-  }
+  const res = await axios.get(`${API_BASE}/api/formations/${id}`, { withCredentials: true });
+  return res.data;
 };
 
-// Créer une nouvelle formation
 export const createFormation = async (formation: Omit<Formation, '_id'>): Promise<Formation> => {
-  try {
-    const response = await axios.post(`${API_BASE}/api/formations`, formation, {
-      withCredentials: true,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la création de la formation:', error);
-    throw new Error('Impossible de créer la formation');
-  }
+  const res = await axios.post(`${API_BASE}/api/formations`, formation, {
+    withCredentials: true,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return res.data;
 };
 
-// Mettre à jour une formation
 export const updateFormation = async (id: string, formation: Partial<Formation>): Promise<Formation> => {
-  try {
-    const response = await axios.put(`${API_BASE}/api/formations/${id}`, formation, {
-      withCredentials: true,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour de la formation:', error);
-    throw new Error('Impossible de mettre à jour la formation');
-  }
+  const res = await axios.put(`${API_BASE}/api/formations/${id}`, formation, {
+    withCredentials: true,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return res.data;
 };
 
-// Supprimer une formation
 export const deleteFormation = async (id: string): Promise<void> => {
-  try {
-    await axios.delete(`${API_BASE}/api/formations/${id}`, {
-      withCredentials: true,
-    });
-  } catch (error) {
-    console.error('Erreur lors de la suppression de la formation:', error);
-    throw new Error('Impossible de supprimer la formation');
-  }
+  await axios.delete(`${API_BASE}/api/formations/${id}`, { withCredentials: true });
 };
 
-// Inscrire un participant à une formation
+// =======================
+// Participants
+// =======================
 export const inscrireParticipant = async (formationId: string, employeId: string): Promise<ParticipantFormation> => {
-  try {
-    const response = await axios.post(
-      `${API_BASE}/api/formations/${formationId}/participants`,
-      { employeId },
-      {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de l\'inscription du participant:', error);
-    throw new Error('Impossible d\'inscrire le participant');
-  }
+  const res = await axios.post(`${API_BASE}/api/formations/${formationId}/participants`, { employeId }, {
+    withCredentials: true,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return res.data;
 };
 
-// Mettre à jour le statut d'un participant
 export const updateStatutParticipant = async (
   formationId: string,
   participantId: string,
-  statut: string,
+  statut: ParticipantFormation['statut'],
   evaluation?: number,
   commentaires?: string
 ): Promise<ParticipantFormation> => {
-  try {
-    const response = await axios.put(
-      `${API_BASE}/api/formations/${formationId}/participants/${participantId}`,
-      { statut, evaluation, commentaires },
-      {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du participant:', error);
-    throw new Error('Impossible de mettre à jour le participant');
-  }
+  const res = await axios.put(`${API_BASE}/api/formations/${formationId}/participants/${participantId}`, {
+    statut,
+    evaluation,
+    commentaires
+  }, {
+    withCredentials: true,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return res.data;
 };
 
-// Récupérer les participants d'une formation
 export const getParticipantsFormation = async (formationId: string): Promise<ParticipantFormation[]> => {
-  try {
-    const response = await axios.get(`${API_BASE}/api/formations/${formationId}/participants`, {
-      withCredentials: true,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des participants:', error);
-    throw new Error('Impossible de charger les participants');
-  }
+  const res = await axios.get(`${API_BASE}/api/formations/${formationId}/participants`, { withCredentials: true });
+  return res.data;
 };
 
-// Récupérer les formations d'un employé
 export const getFormationsByEmploye = async (employeId: string): Promise<ParticipantFormation[]> => {
-  try {
-    const response = await axios.get(`${API_BASE}/api/formations/employe/${employeId}`, {
-      withCredentials: true,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des formations de l\'employé:', error);
-    throw new Error('Impossible de charger les formations de l\'employé');
-  }
+  const res = await axios.get(`${API_BASE}/api/formations/employe/${employeId}`, { withCredentials: true });
+  return res.data;
 };

@@ -104,7 +104,7 @@ const HomePage: React.FC = () => {
               Vous serez redirigé vers le tableau de bord de votre entreprise.
             </p>
             <button
-              onClick={() => navigate('/signin')}
+              onClick={() => navigate('/login')}
               className="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center"
             >
               Aller à la page de connexion <ChevronRight className="ml-2 h-5 w-5" />

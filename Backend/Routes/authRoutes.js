@@ -1,20 +1,17 @@
-// routes/authRoutes.js
 const express = require("express");
 const router = express.Router();
-const userController = require("../Controller/AuthController");
-const { requireAuth, checkAuth } = require("../midlewere/authmidleware"); // Middleware pour JWT
+const authController = require("../Controller/authController");
 
-// === Authentification ===
-// Connexion
-router.post("/login", userController.signIn);
+// 🔹 Authentification
+router.post("/login", authController.signIn);
+router.get("/logout", authController.logout);
 
-// Déconnexion
-router.get("/logout", userController.logout);
+// 🔹 Gestion utilisateurs
+router.patch("/toggle-active/:id", authController.toggleActive);
 
-// Vérifier si utilisateur connecté
-router.get("/check", checkAuth);
-
-// Activer / désactiver un utilisateur
-router.patch("/toggleActive/:id", requireAuth, userController.toggleActive);
+// 🔹 Mot de passe oublié / réinitialisation
+router.post("/forgot-password", authController.forgotPassword);          // Envoi du mail
+router.get("/verify-reset-token/:token", authController.verifyResetToken); // Vérifie si le token est valide
+router.post("/reset-password/:token", authController.resetPassword);     // Réinitialise le mot de passe
 
 module.exports = router;

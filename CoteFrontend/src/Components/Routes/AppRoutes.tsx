@@ -6,7 +6,10 @@ import { LoadingSpinner } from "../LoadingSpinner";
 import { AdminDashboard } from "../../roleDashboard/AdminDashboard";
 import { HRDashboard } from "../../roleDashboard/RhDashboard";
 import { EmployeeDashboard } from "../../roleDashboard/EmployerDashboard";
+
 import SignIn from "../log/SignIn";
+import ForgotPassword from "../log/ForgotPassword";
+import ResetPassword from "../log/ResetPassword";
 import HomePage from "../../pages/Acceuil";
 
 // Route protégée par rôle
@@ -26,8 +29,10 @@ const AppRoutes: React.FC = () => {
       {/* Redirection de la racine */}
       <Route path="/" element={<HomePage />} />
 
-      {/* Login */}
+      {/* Auth */}
       <Route path="/login" element={<SignIn />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       {/* Dashboards protégés */}
       <Route

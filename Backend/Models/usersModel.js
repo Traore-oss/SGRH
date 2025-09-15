@@ -1,4 +1,3 @@
-// module.exports = mongoose.model("Utilisateur", userSchema);
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
@@ -41,11 +40,15 @@ const userSchema = new mongoose.Schema({
       createdByrh: { type: mongoose.Schema.Types.ObjectId, ref: "Utilisateur" },
     },
     default: undefined
-    // _id: false retiré pour garder l’ID
-  }
+  },
+
+  // ⚡ Champs pour mot de passe oublié
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date }
 
 }, { timestamps: true });
 
+// 🔑 Hash du mot de passe avant sauvegarde
 userSchema.pre("save", async function(next) {
   if (!this.isModified("password")) return next();
   try {

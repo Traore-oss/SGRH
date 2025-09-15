@@ -13,9 +13,8 @@ export interface User {
   isActive: boolean;
   departement?: string;
   entreprise?: string;
-  matricule?: string; 
+  matricule?: string;
 }
-
 
 interface Activity {
   id: string;
@@ -53,11 +52,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
 
   useEffect(() => {
-    // Vérifier l'utilisateur connecté au chargement
+    // 🔹 Vérifie d'abord dans localStorage
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+      setLoading(false);
+      return;
+    }
+
+    // 🔹 Sinon, appelle l’API
     const checkUser = async () => {
       try {
         const res = await authService.checkAuth();
         setUser(res);
+        localStorage.setItem("user", JSON.stringify(res)); // 🔹 Sauvegarde en local
       } catch {
         setUser(null);
       } finally {
@@ -70,6 +78,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     const loggedUser = await authService.login(email, password);
     setUser(loggedUser);
+
+    // 🔹 Sauvegarde dans localStorage
+    localStorage.setItem("user", JSON.stringify(loggedUser));
 
     addActivity({
       type: "auth",
@@ -91,6 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     setUser(null);
     setActivityHistory([]);
+    localStorage.removeItem("user"); // 🔹 Supprime du stockage
   };
 
   const toggleActiveUser = async (userId: string) => {
@@ -105,7 +117,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     // Met à jour l'utilisateur courant si c'est lui-même
-    if (user?.id === updatedUser.id) setUser(updatedUser);
+    if (user?.id === updatedUser.id) {
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser)); // 🔹 Mise à jour stockage
+    }
 
     return updatedUser;
   };

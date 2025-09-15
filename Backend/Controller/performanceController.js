@@ -6,7 +6,9 @@ exports.ajouterPerformance = async (req, res) => {
   try {
     const { matricule, objectif, description, realisation, evaluation } = req.body;
 
-    // Trouver l'employé créé par le RH connecté
+    if (!matricule) return res.status(400).json({ message: "Le matricule est requis" });
+
+    // Trouver l'employé du RH connecté
     const employeDoc = await User.findOne({
       "employer.matricule": matricule,
       "employer.createdByrh": req.user._id
@@ -18,16 +20,18 @@ exports.ajouterPerformance = async (req, res) => {
       employe: employeDoc._id,
       objectif,
       description,
-      realisation,
-      evaluation,
+      realisation: realisation || 'Non démarré',
+      evaluation: evaluation || 'Moyen',
       createdByrh: req.user._id
     });
 
     res.status(201).json(performance);
   } catch (err) {
+    console.error("Erreur ajouterPerformance:", err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
+
 
 // 🔹 Lister toutes les performances du RH connecté
 exports.getAllPerformances = async (req, res) => {

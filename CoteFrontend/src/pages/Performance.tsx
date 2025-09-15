@@ -26,6 +26,7 @@ export interface Departement {
 }
 
 export interface Employee {
+  employer: any;
   _id: string;
   matricule: string;
   nom: string;
@@ -73,24 +74,26 @@ export const getPerformances = async (): Promise<Performance[]> => {
   return response.json();
 };
 
-export const addPerformance = async (
-  perf: Omit<Performance, '_id' | 'createdAt' | 'updatedAt'> & { matricule: string }
-): Promise<Performance> => {
-  const performanceData = {
-    ...perf,
-    matricule: perf.matricule, // obligatoire pour le backend
-  };
+// ===== API Function =====
+export const addPerformance = async (perf: {
+  matricule: string;
+  objectif: string;
+  description: string;
+  realisation: Performance['realisation'];
+  evaluation: Performance['evaluation'];
+}) => {
+  if (!perf.matricule) throw new Error("Le matricule est requis");
 
   const response = await fetch(`${API_BASE}/api/performances`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify(performanceData),
+    body: JSON.stringify(perf),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Erreur lors de l\'ajout de la performance');
+    throw new Error(errorData.message || "Erreur lors de l'ajout de la performance");
   }
 
   return response.json();
@@ -238,48 +241,66 @@ const searchEmployee = () => {
 };
 
   // ===== Submit =====
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!employeeInfo) return toast.error("Veuillez rechercher un employé");
+// ===== Handle Submit =====
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!employeeInfo) return toast.error("Veuillez rechercher un employé");
 
-    if (editingPerformance && editingPerformance._id) {
-      const updatedPerf: Omit<Performance, 'createdAt' | 'updatedAt'> = {
-        _id: editingPerformance._id,
-        employe: formData.employeId,
-        objectif: formData.objectif,
-        description: formData.description,
-        realisation: formData.realisation,
-        evaluation: formData.evaluation
-      };
-      try {
-        const result = await updatePerformance(editingPerformance._id, updatedPerf);
-        setPerformances(prev => prev.map(p => p._id === editingPerformance._id ? { ...result, employe: employeeInfo } : p));
-        toast.success("Performance modifiée avec succès");
-      } catch {
-        toast.error("Erreur lors de la modification");
-      }
-    } else {
-      const newPerf: Omit<Performance, '_id' | 'createdAt' | 'updatedAt'> & { rh: string } = {
-        employe: formData.employeId,
-        objectif: formData.objectif,
-        description: formData.description,
-        realisation: formData.realisation,
-        evaluation: formData.evaluation,
-        rh: formData.rhId || ''
-      };
-      try {
-        const result = await addPerformance(newPerf);
-        setPerformances(prev => [...prev, { ...result, employe: employeeInfo }]);
-        toast.success("Performance ajoutée avec succès");
-      } catch {
-        toast.error("Erreur lors de l'ajout");
-      }
+  // 🔹 Récupérer le matricule correct
+  const matriculeToSend = employeeInfo?.employer?.matricule || employeeInfo?.matricule;
+  if (!matriculeToSend) return toast.error("Le matricule de l'employé est introuvable !");
+
+  if (editingPerformance && editingPerformance._id) {
+    // Édition
+    const updatedPerf: Omit<Performance, 'createdAt' | 'updatedAt'> = {
+      _id: editingPerformance._id,
+      employe: formData.employeId,
+      objectif: formData.objectif,
+      description: formData.description,
+      realisation: formData.realisation,
+      evaluation: formData.evaluation,
+    };
+    try {
+      const result = await updatePerformance(editingPerformance._id, updatedPerf);
+      setPerformances(prev => prev.map(p => p._id === editingPerformance._id ? { ...result, employe: employeeInfo } : p));
+      toast.success("Performance modifiée avec succès");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Erreur lors de la modification");
     }
-    setShowModal(false);
-    setEditingPerformance(null);
-    setFormData({ employeId: '', matricule: '', objectif: '', description: '', realisation: 'Non démarré', evaluation: 'Moyen', rhId: '' });
-    setEmployeeInfo(null);
-  };
+  } else {
+    // Création
+    const newPerf = {
+      matricule: matriculeToSend,
+      objectif: formData.objectif,
+      description: formData.description,
+      realisation: formData.realisation,
+      evaluation: formData.evaluation,
+    };
+    try {
+      const result = await addPerformance(newPerf);
+      setPerformances(prev => [...prev, { ...result, employe: employeeInfo }]);
+      toast.success("Performance ajoutée avec succès");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Erreur lors de l'ajout");
+    }
+  }
+
+  // Reset du formulaire
+  setShowModal(false);
+  setEditingPerformance(null);
+  setFormData({
+    employeId: '',
+    matricule: '',
+    objectif: '',
+    description: '',
+    realisation: 'Non démarré',
+    evaluation: 'Moyen',
+    rhId: ''
+  });
+  setEmployeeInfo(null);
+};
 
   // ===== Supprimer =====
   const handleDelete = async (id: string, perf: Performance) => {
@@ -355,36 +376,71 @@ const searchEmployee = () => {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white shadow rounded-lg overflow-hidden">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-4 py-2 text-left">Matricule</th>
-                <th className="px-4 py-2 text-left">Nom</th>
-                <th className="px-4 py-2 text-left">Objectif</th>
-                <th className="px-4 py-2 text-left">Réalisation</th>
-                <th className="px-4 py-2 text-left">Évaluation</th>
-                <th className="px-4 py-2 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {performances.map((perf) => (
-                <tr key={perf._id} className="border-b">
-                  <td className="px-4 py-2">{getMatricule(perf, employees)}</td>
-                  <td className="px-4 py-2">{getEmployeeName(perf.employe, employees)}</td>
-                  <td className="px-4 py-2">{perf.objectif}</td>
-                  <td className={`px-4 py-2 font-semibold ${getStatusBadgeClass(perf.realisation)}`}>{perf.realisation}</td>
-                  <td className={`px-4 py-2 font-semibold ${getEvaluationBadgeClass(perf.evaluation)}`}>{perf.evaluation}</td>
-                  <td className="px-4 py-2 flex gap-2">
-                    <button onClick={() => handleView(perf)} className="p-2 bg-gray-200 rounded hover:bg-gray-300"><Eye size={16} /></button>
-                    <button onClick={() => handleEdit(perf)} className="p-2 bg-yellow-200 rounded hover:bg-yellow-300"><Edit3 size={16} /></button>
-                    <button onClick={() => handleDelete(perf._id!, perf)} className="p-2 bg-red-200 rounded hover:bg-red-300"><Trash2 size={16} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+        <tr>
+          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Matricule</th>
+          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nom</th>
+          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Objectif</th>
+          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Réalisation</th>
+          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Évaluation</th>
+          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {performances.map((perf, index) => (
+          <tr key={perf._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100'}>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getMatricule(perf, employees)}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{getEmployeeName(perf.employe, employees)}</td>
+            <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate" title={perf.objectif}>{perf.objectif}</td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(perf.realisation)}`}>
+                {perf.realisation}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEvaluationBadgeClass(perf.evaluation)}`}>
+                {perf.evaluation}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => handleView(perf)} 
+                  className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                  title="Voir détails"
+                >
+                  <Eye size={16} />
+                </button>
+                <button 
+                  onClick={() => handleEdit(perf)} 
+                  className="text-yellow-600 hover:text-yellow-900 p-2 rounded-lg hover:bg-yellow-50 transition-colors"
+                  title="Modifier"
+                >
+                  <Edit3 size={16} />
+                </button>
+                <button 
+                  onClick={() => handleDelete(perf._id!, perf)} 
+                  className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                  title="Supprimer"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  {performances.length === 0 && (
+    <div className="text-center py-12 text-gray-500">
+      <p>Aucune performance à afficher pour le moment.</p>
+    </div>
+  )}
+</div>
 
         {/* Modal Ajout / Édition */}
         {showModal && (

@@ -43,7 +43,18 @@ exports.createDepartement = async (req, res) => {
 // Récupérer tous les départements
 exports.getAllDepartements = async (req, res) => {
   try {
-    const departements = await Departement.find().sort({ createdAt: -1 });
+    const userId = req.user?._id;
+    const role = req.user?.role; // "Admin" ou "RH"
+
+    let departements;
+    if (role === 'Admin') {
+      departements = await Departement.find().sort({ createdAt: -1 });
+    } else if (role === 'RH') {
+      departements = await Departement.find({ rh: userId }).sort({ createdAt: -1 });
+    } else {
+      return res.status(403).json({ message: "Accès refusé." });
+    }
+
     res.status(200).json({ departements });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error: error.message });

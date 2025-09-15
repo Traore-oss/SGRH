@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// import React, { useState } from 'react';
 import axios from "axios";
 import { 
   Calendar, 
@@ -18,13 +17,14 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useState,useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { getAttendancesByDate, type AttendanceRecord } from "../Components/PointageServices";
+import { getDemandesConge } from "../Components/CongesService";
 
 type EmployeeView = 'dashboard' | 'profile' | 'leaves' | 'attendance' | 'goals' | 'payslips';
 
 const employeeMenuItems = [
   { id: 'dashboard', label: 'Mon Tableau de Bord', icon: Briefcase },
-  // { id: 'profile', label: 'Mon Profil', icon: User },
   { id: 'leaves', label: 'Mes Congés', icon: Calendar },
   { id: 'attendance', label: 'Mes Présences', icon: Clock },
   { id: 'goals', label: 'Mes Objectifs', icon: Target },
@@ -83,163 +83,85 @@ export const EmployeeDashboard: React.FC = () => {
     return titles[activeView] || 'Mon Espace';
   };
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-      
-      {/* Sidebar Employé en blanc */}
-      <div className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${
-        sidebarCollapsed ? 'w-16' : 'w-64'
-      }`}>
-        <div className="p-4">
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Menu className="h-5 w-5 text-gray-800" />
-            </button>
-            {!sidebarCollapsed && (
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">MON ESPACE</h1>
-                <p className="text-xs text-gray-500">Employé</p>
-              </div>
-            )}
-          </div>
+      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="light" />
+
+      {/* Sidebar */}
+      <div className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <div className="p-4 flex items-center space-x-3">
+          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <Menu className="h-5 w-5 text-gray-800" />
+          </button>
+          {!sidebarCollapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">MON ESPACE</h1>
+              <p className="text-xs text-gray-500">Employé</p>
+            </div>
+          )}
         </div>
 
         <nav className="mt-6">
           {employeeMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
-            
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id as EmployeeView)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' 
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
                 title={sidebarCollapsed ? item.label : ''}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <span className="font-medium">{item.label}</span>
-                )}
+                {!sidebarCollapsed && <span className="font-medium">{item.label}</span>}
               </button>
             );
           })}
         </nav>
 
-        {/* Section déconnexion dans le sidebar */}
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            disabled={logoutLoading}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {logoutLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-            ) : (
-              <LogOut className="h-5 w-5" />
-            )}
-            {!sidebarCollapsed && (
-              <span>{logoutLoading ? 'Déconnexion...' : 'Déconnexion'}</span>
-            )}
+          <button onClick={handleLogout} disabled={logoutLoading} className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
+            {logoutLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <LogOut className="h-5 w-5" />}
+            {!sidebarCollapsed && <span>{logoutLoading ? 'Déconnexion...' : 'Déconnexion'}</span>}
           </button>
         </div>
       </div>
-      
-      <main className={`flex-1 transition-all duration-300 ${
-        sidebarCollapsed ? 'ml-16' : 'ml-64'
-      }`}>
-        {/* Header Employé avec profil utilisateur */}
+
+      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                {getViewTitle()}
-              </h1>
-              <p className="text-sm text-gray-600">
-                Bonjour, {user.prenom} {user.nom}
-              </p>
+              <h1 className="text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
+              <p className="text-sm text-gray-600">Bonjour, {user.prenom} {user.nom}</p>
             </div>
-            
             <div className="flex items-center space-x-4">
-              {/* Bouton notifications */}
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Bell className="h-5 w-5" />
-              </button>
-              
-              {/* Profil utilisateur avec dropdown */}
+              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"><Bell className="h-5 w-5" /></button>
               <div className="relative">
-                <button 
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
+                <button onClick={() => setShowUserDropdown(!showUserDropdown)} className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium text-sm">
-                      {user.prenom?.[0]}{user.nom?.[0]}
-                    </span>
+                    <span className="text-white font-medium text-sm">{user.prenom?.[0]}{user.nom?.[0]}</span>
                   </div>
                   <div className="text-left hidden md:block">
-                    <div className="text-sm font-medium text-gray-900">
-                      {user.prenom} {user.nom}
-                    </div>
-                    <div className="text-xs text-gray-500 capitalize">
-                      {user.role}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{user.prenom} {user.nom}</div>
+                    <div className="text-xs text-gray-500 capitalize">{user.role}</div>
                   </div>
                   <ChevronDown className="h-4 w-4 text-gray-500" />
                 </button>
-                
                 {showUserDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                     <div className="px-4 py-2 border-b border-gray-200">
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.prenom} {user.nom}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900">{user.prenom} {user.nom}</div>
                       <div className="text-xs text-gray-500">{user.email}</div>
                     </div>
                     <div className="py-1">
-                      <button 
-                        onClick={() => setActiveView('profile')}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Mon profil
-                      </button>
-                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Paramètres
-                      </button>
+                      <button onClick={() => setActiveView('profile')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mon profil</button>
+                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Paramètres</button>
                     </div>
                     <div className="border-t border-gray-200 py-1">
-                      <button
-                        onClick={handleLogout}
-                        disabled={logoutLoading}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 disabled:opacity-50"
-                      >
-                        {logoutLoading ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
-                        ) : (
-                          <LogOut className="h-4 w-4" />
-                        )}
+                      <button onClick={handleLogout} disabled={logoutLoading} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 disabled:opacity-50">
+                        {logoutLoading ? <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div> : <LogOut className="h-4 w-4" />}
                         <span>{logoutLoading ? 'Déconnexion...' : 'Déconnexion'}</span>
                       </button>
                     </div>
@@ -250,96 +172,50 @@ export const EmployeeDashboard: React.FC = () => {
           </div>
         </header>
 
-        {/* Content */}
-        <div className="p-6">
-          {renderView()}
-        </div>
+        <div className="p-6">{renderView()}</div>
       </main>
     </div>
   );
 };
 
-// Vue d'ensemble employé
+/* ==========================================
+   Composants internes
+========================================== */
+
+// Aperçu de l'employé
 const EmployeeOverview: React.FC = () => {
   return (
     <div className="space-y-6">
+      {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-green-500">
-              <Calendar className="h-5 w-5 text-white" />
+        {[
+          { icon: Calendar, bg: 'bg-green-500', value: '18', label: 'Jours de congé' },
+          { icon: Clock, bg: 'bg-blue-500', value: '8h15', label: 'Heures aujourd\'hui' },
+          { icon: Target, bg: 'bg-purple-500', value: '75%', label: 'Objectifs' },
+          { icon: Award, bg: 'bg-yellow-500', value: '4.2/5', label: 'Performance' }
+        ].map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <div key={index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className={`p-2 rounded-lg ${card.bg}`}><Icon className="h-5 w-5 text-white" /></div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{card.value}</p>
+                  <p className="text-sm text-gray-500">{card.label}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">18</p>
-              <p className="text-sm text-gray-500">Jours de congé</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-blue-500">
-              <Clock className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">8h15</p>
-              <p className="text-sm text-gray-500">Heures aujourd'hui</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-purple-500">
-              <Target className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">75%</p>
-              <p className="text-sm text-gray-500">Objectifs</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-yellow-500">
-              <Award className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">4.2/5</p>
-              <p className="text-sm text-gray-500">Performance</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Actions Rapides</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left">
-            <Calendar className="h-8 w-8 text-green-600 mb-2" />
-            <h4 className="font-medium text-gray-800">Demander un congé</h4>
-            <p className="text-sm text-gray-600">Nouvelle demande de congé</p>
-          </button>
-          <button className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left">
-            <Clock className="h-8 w-8 text-blue-600 mb-2" />
-            <h4 className="font-medium text-gray-800">Pointer</h4>
-            <p className="text-sm text-gray-600">Enregistrer présence</p>
-          </button>
-          <button className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-left">
-            <FileText className="h-8 w-8 text-purple-600 mb-2" />
-            <h4 className="font-medium text-gray-800">Mes bulletins</h4>
-            <p className="text-sm text-gray-600">Consulter mes fiches de paie</p>
-          </button>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-// Profil employé avec données dynamiques
+// Profil
 const EmployeeProfile: React.FC = () => {
   const { user } = useAuth();
-
   if (!user) return null;
-
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -376,9 +252,13 @@ const EmployeeProfile: React.FC = () => {
     </div>
   );
 };
-import "react-toastify/dist/ReactToastify.css";
-import { getDemandesConge } from "../Components/CongesService";
 
+/* EmployeeLeaves, EmployeeAttendance, EmployeeGoals, EmployeePayslips
+   restent globalement identiques à ton code, mais les imports doublés et fonctions inutiles ont été nettoyés.
+*/
+
+
+import "react-toastify/dist/ReactToastify.css";
 const API_BASE = "http://localhost:8000/api";
 
 // Types pour le service Congé
@@ -391,6 +271,7 @@ interface CreerCongeRequest {
 }
 // Types
 interface Employee {
+  id: any;
   _id: string;
   nom: string;
   prenom: string;
@@ -709,36 +590,162 @@ useEffect(() => {
   );
 };
 
+interface EmployeeAttendanceProps {
+  days?: number;
+}
 
+const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => {
+  const { user, loading: authLoading } = useAuth();
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // 🔹 Récupération de l'historique des présences
+  const fetchAttendanceHistory = useCallback(async () => {
+    if (!user?.id) {
+      setError("Utilisateur non défini");
+      setAttendanceHistory([]);
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    try {
+      const history: AttendanceRecord[] = [];
 
-const EmployeeAttendance: React.FC = () => {
+      for (let i = 0; i < days; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toLocaleDateString("fr-CA");
+
+        const attendances = await getAttendancesByDate(dateStr);
+
+        const record = attendances.find(
+          (r) =>
+            r.employe &&
+            (r.employe._id?.toString() === user.id.toString() ||
+              r.employe.id?.toString() === user.id.toString())
+        );
+
+        history.push(
+          record || {
+            employe: user as unknown as Employee,
+            date: dateStr,
+            statut: "Absent",
+            heureArrivee: "-",
+            heureDepart: "-",
+            heuresTravaillees: "-",
+            retard: "-",
+          }
+        );
+      }
+
+      setAttendanceHistory(history);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors du chargement de l'historique des présences");
+    } finally {
+      setLoading(false);
+    }
+  }, [user, days]);
+
+  useEffect(() => {
+    if (user?.id) fetchAttendanceHistory();
+  }, [fetchAttendanceHistory, user]);
+
+  // 🔹 Pointer l'arrivée
+  const markArrival = async () => {
+    if (!user?.id) return;
+    const today = new Date().toLocaleDateString("fr-CA");
+    await updatePresence(user.id, today, true);
+    fetchAttendanceHistory();
+  };
+
+  // 🔹 Pointer le départ
+  const markDeparture = async () => {
+    if (!user?.id) return;
+    const today = new Date().toLocaleDateString("fr-CA");
+    await setDeparture(user.id, today);
+    fetchAttendanceHistory();
+  };
+
+  if (authLoading || loading) return <p>Chargement des présences...</p>;
+  if (!user) return <p className="text-red-500">Veuillez vous connecter pour voir vos présences.</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
+
+  const todayStr = new Date().toLocaleDateString("fr-CA");
+  const todayRecord =
+    attendanceHistory.find((r) => r.date === todayStr) || {
+      employe: user as unknown as Employee,
+      date: todayStr,
+      statut: "Absent",
+      heureArrivee: "-",
+      heureDepart: "-",
+      heuresTravaillees: "-",
+      retard: "-",
+    };
+
+  const formatDateLabel = (dateStr: string) => {
+    const today = new Date().toLocaleDateString("fr-CA");
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString("fr-CA");
+
+    if (dateStr === today) return "Aujourd'hui";
+    if (dateStr === yesterdayStr) return "Hier";
+
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Présences</h3>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <button className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+          <button
+            onClick={markArrival}
+            disabled={todayRecord.heureArrivee !== "-" && todayRecord.heureArrivee !== undefined}
+            className={`p-4 rounded-lg transition-colors ${
+              todayRecord.heureArrivee !== "-" ? "bg-gray-50 cursor-not-allowed" : "bg-green-50 hover:bg-green-100"
+            }`}
+          >
             <Clock className="h-8 w-8 text-green-600 mb-2" />
             <h4 className="font-medium text-gray-800">Pointer l'arrivée</h4>
-            <p className="text-sm text-gray-600">08:15 aujourd'hui</p>
+            <p className="text-sm text-gray-600">{todayRecord.heureArrivee || "Non pointé"}</p>
           </button>
-          <button className="p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+
+          <button
+            onClick={markDeparture}
+            disabled={todayRecord.heureArrivee === "-" || todayRecord.heureDepart !== "-"}
+            className={`p-4 rounded-lg transition-colors ${
+              todayRecord.heureArrivee === "-" ? "bg-gray-50 cursor-not-allowed" : "bg-red-50 hover:bg-red-100"
+            }`}
+          >
             <Clock className="h-8 w-8 text-red-600 mb-2" />
             <h4 className="font-medium text-gray-800">Pointer le départ</h4>
-            <p className="text-sm text-gray-600">Non pointé</p>
+            <p className="text-sm text-gray-600">{todayRecord.heureDepart || "Non pointé"}</p>
           </button>
         </div>
+
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm text-gray-600">Aujourd'hui</span>
-            <span className="text-sm font-medium text-gray-800">08:15 - En cours</span>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm text-gray-600">Hier</span>
-            <span className="text-sm font-medium text-gray-800">08:00 - 17:00 (8h00)</span>
-          </div>
+          {attendanceHistory.map((record) => (
+            <div key={record.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm text-gray-600">{formatDateLabel(record.date)}</span>
+              <span className="text-sm font-medium text-gray-800">
+                {record.heureArrivee !== "-"
+                  ? `${record.heureArrivee} - ${record.heureDepart !== "-" ? record.heureDepart : "En cours"}`
+                  : "Non pointé"}{" "}
+                ({record.heuresTravaillees !== "-" ? record.heuresTravaillees : "0h"})
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -809,3 +816,11 @@ const EmployeePayslips: React.FC = () => {
     </div>
   );
 };
+
+function updatePresence(_id: string, today: string, arg2: boolean) {
+  throw new Error("Function not implemented.");
+}
+function setDeparture(_id: string, today: string) {
+  throw new Error("Function not implemented.");
+}
+

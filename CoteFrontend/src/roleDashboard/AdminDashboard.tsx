@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Users, Building2, FileText, Settings, Calendar,
@@ -10,7 +11,6 @@ import {useAuth} from '../context/AuthContext';
 import { getEmployees, type Employee } from '../Components/ServiceEmployer';
 import { Dashboard } from '../pages/Dashboard';
 import { CongesManager } from '../pages/Conges';
-import { AttendanceManager } from '../pages/Pointages';
 import { Departments } from '../pages/Departement';
 import { PerformanceEmployer } from '../pages/Performance';
 import { Reports } from '../pages/Rapport';
@@ -18,6 +18,7 @@ import Salaire from "../pages/Salaire";
 import SuiviFormations from "../pages/Formation";
 import { EmployeeForm } from '../forms/EmployeeForm';
 import { type Key, type ReactElement, type JSXElementConstructor, type ReactNode, type ReactPortal, useState, useEffect } from 'react';
+import AttendanceManager from '../pages/Pointages';
 
 // ==================== Styles d'animation ====================
 const cardAnimation = `

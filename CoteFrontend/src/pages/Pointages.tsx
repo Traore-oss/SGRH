@@ -11,6 +11,7 @@ import {
 import { useEffect, useState } from "react";
 import { Bar, Pie } from "react-chartjs-2";
 
+
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -68,29 +69,27 @@ const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> =
   }
 };
 
-const updatePresence = async (
-  employeId: string,
-  date: string,
-  checked: boolean
-): Promise<AttendanceRecord | null> => {
+const updatePresenceBulk = async (records: { employeId: string; date: string; checked: boolean }[]) => {
   try {
     const res = await fetch(`${API_BASE}/api/pointages/updatePresence`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ employeId, date, checked }),
+      body: JSON.stringify({ attendances: records }),
     });
+
     if (!res.ok) {
       const errorData = await res.json();
       throw new Error(errorData.message || "Erreur lors de la mise à jour de la présence");
     }
-    const data: AttendanceRecord = await res.json();
-    return data;
+
+    return await res.json(); // tableau de présences mis à jour
   } catch (err: any) {
-    console.error("updatePresence error:", err.message || err);
+    console.error("updatePresenceBulk error:", err.message || err);
     return null;
   }
 };
+
 
 const setDeparture = async (employeId: string, date: string): Promise<AttendanceRecord | null> => {
   try {
@@ -167,7 +166,7 @@ export const AttendanceManager: React.FC = () => {
   }, []);
 
   const togglePresence = async (record: AttendanceRecord, checked: boolean) => {
-    const updatedRecord = await updatePresence(record.employe._id, record.date, checked);
+    const updatedRecord = await updatePresenceBulk([{ employeId: record.employe._id, date: record.date, checked }]);
     if (updatedRecord) {
       setAttendance(prev =>
         prev.map(r => r.employe._id === record.employe._id && r.date === record.date
@@ -201,35 +200,52 @@ export const AttendanceManager: React.FC = () => {
   };
 
   // Correction de l'erreur de recherche - vérification des propriétés
-  const filteredAttendance = attendance.filter(r => {
-    const recordDate = new Date(r.date);
-    const selectedDate = new Date(filterDate);
-    const dateMatch = filterPeriod === "jour"
-      ? recordDate.toISOString().split("T")[0] === selectedDate.toISOString().split("T")[0]
-      : filterPeriod === "semaine"
-        ? Math.ceil(((recordDate.getTime() - new Date(recordDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7) ===
-          Math.ceil(((selectedDate.getTime() - new Date(selectedDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7)
-        : recordDate.getMonth() === selectedDate.getMonth() && recordDate.getFullYear() === selectedDate.getFullYear();
+const filteredAttendance = attendance.filter(r => {
+  const recordDate = new Date(r.date);
+  const selectedDate = filterDate ? new Date(filterDate) : null;
 
-    if (!dateMatch) return false;
-    if (filterStatus !== "Tous" && r.statut !== filterStatus) return false;
-    
-    // Correction: Vérification que les propriétés existent avant d'appeler toLowerCase()
-    if (searchTerm) {
-      const nom = r.employe?.nom || "";
-      const prenom = r.employe?.prenom || "";
-      const matricule = r.employe?.matricule || "";
-      
-      const searchTermLower = searchTerm.toLowerCase();
-      if (!nom.toLowerCase().includes(searchTermLower) &&
-          !prenom.toLowerCase().includes(searchTermLower) &&
-          !matricule.toLowerCase().includes(searchTermLower)) {
-        return false;
-      }
+  // Si la date n'est pas valide → on ignore
+  if (isNaN(recordDate.getTime()) || !selectedDate || isNaN(selectedDate.getTime())) {
+    return false;
+  }
+
+  let dateMatch = false;
+  if (filterPeriod === "jour") {
+    dateMatch = recordDate.toISOString().split("T")[0] === selectedDate.toISOString().split("T")[0];
+  } else if (filterPeriod === "semaine") {
+    const getWeekNumber = (date: Date) =>
+      Math.ceil(((date.getTime() - new Date(date.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7);
+
+    dateMatch = getWeekNumber(recordDate) === getWeekNumber(selectedDate);
+  } else if (filterPeriod === "mois") {
+    dateMatch =
+      recordDate.getMonth() === selectedDate.getMonth() &&
+      recordDate.getFullYear() === selectedDate.getFullYear();
+  } else {
+    dateMatch = true; // si aucun filtre
+  }
+
+  if (!dateMatch) return false;
+  if (filterStatus !== "Tous" && r.statut !== filterStatus) return false;
+
+  if (searchTerm) {
+    const nom = r.employe?.nom || "";
+    const prenom = r.employe?.prenom || "";
+    const matricule = r.employe?.matricule || "";
+
+    const searchTermLower = searchTerm.toLowerCase();
+    if (
+      !nom.toLowerCase().includes(searchTermLower) &&
+      !prenom.toLowerCase().includes(searchTermLower) &&
+      !matricule.toLowerCase().includes(searchTermLower)
+    ) {
+      return false;
     }
-    
-    return true;
-  });
+  }
+
+  return true;
+});
+
 
   const stats = {
     total: filteredAttendance.length,

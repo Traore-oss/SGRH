@@ -1,27 +1,59 @@
-// middlewere/authmidleware.js
 const jwt = require("jsonwebtoken");
 const Utilisateur = require("../Models/usersModel");
 
+// Middleware pour protéger les routes
 const requireAuth = async (req, res, next) => {
-  const token = req.cookies.jwt;
-  if (!token) return res.status(401).json({ message: "Accès non autorisé, token manquant" });
+  let token = null;
+
+  // Vérifier si le token est dans les cookies
+  if (req.cookies && req.cookies.jwt) {
+    token = req.cookies.jwt;
+  }
+
+  // Vérifier si le token est dans l'en-tête Authorization
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
+  }
+
+  if (!token) {
+    return res.status(401).json({ message: "Accès non autorisé, token manquant" });
+  }
 
   try {
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decodedToken.id || decodedToken._id;
     const user = await Utilisateur.findById(userId).select("-password");
-    if (!user) return res.status(401).json({ message: "Utilisateur introuvable" });
+
+    if (!user) {
+      return res.status(401).json({ message: "Utilisateur introuvable" });
+    }
 
     req.user = user;
     next();
   } catch (err) {
-    console.error(err);
+    console.error("Erreur requireAuth:", err.message);
     res.status(401).json({ message: "Token invalide ou expiré" });
   }
 };
 
+// Vérifier l'authentification sans bloquer la route
 const checkAuth = async (req, res) => {
-  const token = req.cookies.jwt;
+  let token = null;
+
+  if (req.cookies && req.cookies.jwt) {
+    token = req.cookies.jwt;
+  }
+
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
+  }
+
   if (!token) return res.status(200).json({ user: null });
 
   try {

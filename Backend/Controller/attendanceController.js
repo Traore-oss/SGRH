@@ -2,224 +2,124 @@ const Attendance = require('../Models/pointageModel');
 const User = require('../Models/usersModel');
 const mongoose = require("mongoose");
 
-
-// attendanceController.js
+// GET attendances
 exports.getAttendances = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: "Utilisateur non authentifié" });
-    }
+    if (!req.user?._id) return res.status(401).json({ message: "Utilisateur non authentifié" });
 
     let employeIds = [];
-
-    if (req.user.role === "RH") {
-      // RH : récupérer tous les employés qu'il a créés
+    if (req.user.role === "Admin") {
+      const allUsers = await User.find().select("_id");
+      employeIds = allUsers.map(u => u._id);
+    } else if (req.user.role === "RH") {
       const employes = await User.find({ "employer.createdByrh": req.user._id }).select("_id");
-      employeIds = employes.map(emp => emp._id);
+      employeIds = employes.map(e => e._id);
     } else {
-      // Employé : récupérer uniquement sa propre présence
       employeIds = [req.user._id];
     }
 
-    const { date } = req.query;
+    const filter = { employe: { $in: employeIds } };
+    if (req.query.date) filter.date = req.query.date;
 
-    // Construire le filtre correctement
-    const filter = { employe: { $in: employeIds } }; // <-- utiliser 'employe', pas 'matricule'
-    if (date) filter.date = date;
-
-    const attendances = await Attendance.find(filter)
-      .populate("employe", "nom prenom"); // <-- peupler 'employe'
-
+    const attendances = await Attendance.find(filter).populate("employe", "nom prenom");
     res.json(attendances);
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-
-// exports.updatePresence = async (req, res) => {
-//   try {
-//     // Récupérer l'ID envoyé (soit employeId soit id)
-//     const employeId = req.body.employeId || req.body.id;
-//     const { date, checked } = req.body;
-
-//     if (!employeId || !mongoose.Types.ObjectId.isValid(employeId)) {
-//       return res.status(400).json({ message: "ID employé invalide" });
-//     }
-
-//     // Trouver l'employé par son _id
-//     const employe = await User.findById(employeId);
-//     if (!employe) return res.status(404).json({ message: "Employé non trouvé" });
-
-//     // Vérifier les permissions
-//     if (req.user.role === "RH") {
-//       // Vérifier si ce RH a créé cet employé
-//       if (!employe.employer?.createdByrh.equals(req.user._id)) {
-//         return res.status(403).json({ message: "Vous ne pouvez pas modifier cet employé" });
-//       }
-//     } else if (!req.user._id.equals(employeId)) {
-//       return res.status(403).json({ message: "Non autorisé" });
-//     }
-
-//     // Trouver ou créer l'enregistrement de présence
-//     let record = await Attendance.findOne({ employe: employeId, date });
-//     if (!record) {
-//       record = new Attendance({ employe: employeId, date });
-//     }
-
-//     const now = new Date();
-
-//     if (checked) {
-//       record.heureArrivee = now.toTimeString().slice(0, 8);
-
-//       const limite = new Date(`${date}T08:00:00`);
-//       const diffSec = Math.floor((now - limite) / 1000);
-
-//       if (diffSec > 0) {
-//         record.statut = "Retard";
-//         const totalMinutes = Math.floor(diffSec / 60);
-//         const hours = Math.floor(totalMinutes / 60);
-//         const minutes = totalMinutes % 60;
-//         record.retard = `${hours}h${minutes}m`;
-//       } else {
-//         record.statut = "Présent";
-//         record.retard = "-";
-//       }
-//     } else {
-//       record.statut = "Absent";
-//       record.heureArrivee = "-";
-//       record.heureDepart = "-";
-//       record.heuresTravaillees = "-";
-//       record.retard = "-";
-//     }
-
-//     await record.save();
-//     res.json(record);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
+// 🔹 Mettre à jour la présence de plusieurs employés
 exports.updatePresence = async (req, res) => {
   try {
-    const employeId = req.body.employeId || req.body.id;
-    const { date, checked } = req.body;
+    let records = req.body.attendances || req.body;
+    if (!Array.isArray(records)) records = [records];
 
-    if (!employeId || !mongoose.Types.ObjectId.isValid(employeId)) {
-      return res.status(400).json({ message: "ID employé invalide" });
+    if (!records.length) {
+      return res.status(400).json({ message: "Aucun pointage fourni" });
     }
 
-    const employe = await User.findById(employeId);
-    if (!employe) return res.status(404).json({ message: "Employé non trouvé" });
+    const bulkOps = [];
 
-    // Vérification permissions
-    if (req.user.role === "RH") {
-      if (!employe.employer?.createdByrh.equals(req.user._id)) {
-        return res.status(403).json({ message: "Vous ne pouvez pas modifier cet employé" });
+    for (let r of records) {
+      const { employeId, date, checked } = r;
+
+      if (!employeId || !mongoose.Types.ObjectId.isValid(employeId)) {
+        console.log("🚨 employeId invalide ou manquant:", r);
+        continue;
       }
-    } else if (!req.user._id.equals(employeId)) {
-      return res.status(403).json({ message: "Non autorisé" });
-    }
 
-    // Trouver ou créer l'enregistrement de présence
-    let record = await Attendance.findOne({ employe: employeId, date });
-    if (!record) {
-      record = new Attendance({ employe: employeId, date });
-    }
+      const employe = await User.findById(employeId);
+      if (!employe) continue;
 
-    const now = new Date();
-
-    if (checked) {
-      record.heureArrivee = now.toTimeString().slice(0, 8);
-
-      const limite = new Date(`${date}T08:00:00`);
-      const diffSec = Math.floor((now - limite) / 1000);
-
-      if (diffSec > 0) {
-        record.statut = "Retard";
-        const totalMinutes = Math.floor(diffSec / 60);
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        record.retard = `${hours}h${minutes}m`;
-      } else {
-        record.statut = "Présent";
-        record.retard = "-";
+      // Vérifier permissions
+      if (req.user.role !== "Admin") {
+        if (req.user.role === "RH" && !employe.employer?.createdByrh.equals(req.user._id)) continue;
+        if (req.user.role === "Employe" && !req.user._id.equals(employeId)) continue;
       }
-    } else {
-      record.statut = "Absent";
-      record.heureArrivee = "-";
-      record.heureDepart = "-";
-      record.heuresTravaillees = "-";
-      record.retard = "-";
+
+      // Calcul de l'état de présence
+      const now = new Date();
+      let statut = "Absent";
+      let heureArrivee = "-";
+      let retard = "-";
+
+      if (checked) {
+        heureArrivee = now.toTimeString().slice(0, 8);
+        const limite = new Date(`${date}T08:00:00`);
+        const diffSec = Math.floor((now - limite) / 1000);
+        if (diffSec > 0) {
+          statut = "Retard";
+          const totalMinutes = Math.floor(diffSec / 60);
+          retard = `${Math.floor(totalMinutes / 60)}h${totalMinutes % 60}m`;
+        } else {
+          statut = "Présent";
+        }
+      }
+
+      // 🔹 Ajouter à bulkOps avec upsert pour éviter les doublons
+      bulkOps.push({
+        updateOne: {
+          filter: { employe: employeId, date },
+          update: { statut, heureArrivee, retard },
+          upsert: true,
+        },
+      });
     }
 
-    await record.save();
+    if (!bulkOps.length) {
+      return res.status(400).json({ message: "Aucun pointage valide à enregistrer" });
+    }
 
-    // Peupler l'employé avant d'envoyer
-    await record.populate("employe", "_id nom prenom matricule");
-    res.json(record);
+    // 🔹 Exécuter le bulkWrite pour tous les employés
+    await Attendance.bulkWrite(bulkOps);
+
+    // 🔹 Récupérer toutes les présences mises à jour
+    const updatedRecords = await Attendance.find({
+      employe: { $in: records.map(r => r.employeId) },
+      date: records[0].date,
+    }).populate("employe", "_id nom prenom");
+
+    res.json(updatedRecords);
 
   } catch (err) {
+    console.error("🚨 updatePresence error:", err);
+
+    // Si erreur de doublon (E11000)
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "Doublon détecté pour un employé sur cette date" });
+    }
+
     res.status(500).json({ message: err.message });
   }
 };
 
 
-// exports.setDeparture = async (req, res) => {
-//   try {
-//     // Récupérer l'ID envoyé (soit employeId soit id)
-//     const employeId = req.body.employeId || req.body.id;
-//     const { date } = req.body;
 
-//     if (!employeId || !mongoose.Types.ObjectId.isValid(employeId)) {
-//       return res.status(400).json({ message: "ID employé invalide" });
-//     }
-
-//     // Vérifier si l'employé existe
-//     const employe = await User.findById(employeId);
-//     if (!employe) return res.status(404).json({ message: "Employé non trouvé" });
-
-//     // Vérifier les permissions
-//     if (req.user.role === "RH") {
-//       // Vérifier si ce RH a créé cet employé
-//       if (!employe.employer?.createdByrh.equals(req.user._id)) {
-//         return res.status(403).json({ message: "Vous ne pouvez pas modifier cet employé" });
-//       }
-//     } else if (!req.user._id.equals(employeId)) {
-//       return res.status(403).json({ message: "Non autorisé" });
-//     }
-
-//     // Trouver ou créer l'enregistrement de présence
-//     let record = await Attendance.findOne({ employe: employeId, date });
-//     if (!record) {
-//       record = new Attendance({ employe: employeId, date });
-//     }
-
-//     const now = new Date();
-//     record.heureDepart = now.toTimeString().slice(0, 8);
-
-//     // Calculer les heures travaillées si l'heure d'arrivée existe
-//     if (record.heureArrivee && record.heureArrivee !== "-") {
-//       const arrivee = new Date(`${date}T${record.heureArrivee}`);
-//       const diffMs = now - arrivee;
-//       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-//       const diffMinutes = Math.floor((diffMs / (1000 * 60)) % 60);
-//       record.heuresTravaillees = `${diffHours}h${diffMinutes}m`;
-//     } else {
-//       record.heuresTravaillees = "-";
-//     }
-
-//     await record.save();
-//     res.json(record);
-
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
+// SET departure (départ d’un employé)
 exports.setDeparture = async (req, res) => {
   try {
-    const employeId = req.body.employeId || req.body.id;
-    const { date } = req.body;
+    const { employeId, date } = req.body;
 
     if (!employeId || !mongoose.Types.ObjectId.isValid(employeId)) {
       return res.status(400).json({ message: "ID employé invalide" });
@@ -228,25 +128,22 @@ exports.setDeparture = async (req, res) => {
     const employe = await User.findById(employeId);
     if (!employe) return res.status(404).json({ message: "Employé non trouvé" });
 
-    // Vérification permissions
-    if (req.user.role === "RH") {
-      if (!employe.employer?.createdByrh.equals(req.user._id)) {
+    // Permissions
+    if (req.user.role !== "Admin") {
+      if (req.user.role === "RH" && !employe.employer?.createdByrh.equals(req.user._id)) {
         return res.status(403).json({ message: "Vous ne pouvez pas modifier cet employé" });
       }
-    } else if (!req.user._id.equals(employeId)) {
-      return res.status(403).json({ message: "Non autorisé" });
+      if (req.user.role === "Employe" && !req.user._id.equals(employeId)) {
+        return res.status(403).json({ message: "Non autorisé" });
+      }
     }
 
-    // Trouver ou créer l'enregistrement de présence
     let record = await Attendance.findOne({ employe: employeId, date });
-    if (!record) {
-      record = new Attendance({ employe: employeId, date });
-    }
+    if (!record) record = new Attendance({ employe: employeId, date });
 
     const now = new Date();
     record.heureDepart = now.toTimeString().slice(0, 8);
 
-    // Calcul heures travaillées
     if (record.heureArrivee && record.heureArrivee !== "-") {
       const arrivee = new Date(`${date}T${record.heureArrivee}`);
       const diffMs = now - arrivee;
@@ -258,9 +155,8 @@ exports.setDeparture = async (req, res) => {
     }
 
     await record.save();
+    await record.populate("employe", "_id nom prenom");
 
-    // Peupler l'employé avant d'envoyer
-    await record.populate("employe", "_id nom prenom matricule");
     res.json(record);
 
   } catch (err) {

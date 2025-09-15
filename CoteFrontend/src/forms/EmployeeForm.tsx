@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from 'react-toastify';
 import api from '../api/axios.config';
 import { useEffect, useState } from 'react';
@@ -149,6 +149,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
     const fullPhoneNumber = selectedCountry ? selectedCountry.prefix + formData.telephone : formData.telephone;
 
     const payload = {
+       ...user, // garde tout ce qui existe
       nom: formData.nom,
       prenom: formData.prenom,
       email: formData.email,
@@ -158,6 +159,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ user, onSubmit, onCl
       adresse: formData.adresse,
       role: 'Employe',
       employer: {
+        ...user.employer,
         poste: formData.poste,
         salaire: Number(formData.salaire),
         typeContrat: formData.typeContrat,

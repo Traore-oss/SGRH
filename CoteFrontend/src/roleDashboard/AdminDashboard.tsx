@@ -8,7 +8,7 @@ import {
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {useAuth} from '../context/AuthContext';
-import { getEmployees, type Employee } from '../Components/ServiceEmployer';
+import { getEmployees, toggleEmployeeActive, type Employee } from '../Components/ServiceEmployer';
 import { Dashboard } from '../pages/Dashboard';
 import { CongesManager } from '../pages/Conges';
 import { Departments } from '../pages/Departement';
@@ -275,32 +275,20 @@ export const UserManagement: React.FC = () => {
     fetchEmployees(); 
   }, []);
 
-const toggleActive = async (
-  userId: string,
-  isActive: boolean,
-  userName: string
-) => {
+const toggleActive = async (userId: string, isActive: boolean, userName: string) => {
   try {
-    const res = await fetch(`${API_BASE}/api/Auth/toggleActive/${userId}`, {
-      method: "PATCH",
-      credentials: "include",
-    });
+    // Appel réel à l'API
+    const data = await toggleEmployeeActive(userId); // { message, utilisateur }
 
-    if (!res.ok) throw new Error("Erreur lors du changement de statut");
-
-    // Mettre à jour localement la liste des employés
-    setEmployees((prev) =>
-      prev.map(emp =>
-        emp._id === userId ? { ...emp, isActive: !isActive } : emp
-      )
+    // Mettre à jour la liste des employés localement
+    setEmployees(prev =>
+      prev.map(emp => emp._id === userId ? { ...emp, isActive: data.utilisateur.isActive } : emp)
     );
 
-    toast.success(
-      `Utilisateur ${userName} ${isActive ? "désactivé" : "activé"} avec succès`
-    );
-  } catch (err) {
+    toast.success(data.message);
+  } catch (err: any) {
     console.error(err);
-    toast.error("Impossible de changer l'état de l'utilisateur.");
+    toast.error(err.message || "Impossible de changer l'état de l'utilisateur.");
   }
 };
 

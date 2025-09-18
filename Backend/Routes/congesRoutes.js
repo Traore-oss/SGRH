@@ -14,6 +14,8 @@ router.put('/approuverConge/:id', requireAuth, congeController.approuverConge);
 
 // ❌ Refuser un congé
 router.put('/refuserConge/:id', requireAuth, congeController.refuserConge);
-// router.get('/getCongesEmploye', requireAuth, congeController.getCongesEmploye);
+
+// 🗑️ Supprimer un congé (Admin seulement)
+router.delete('/supprimerConge/:id', requireAuth, congeController.supprimerConge);
 
 module.exports = router;

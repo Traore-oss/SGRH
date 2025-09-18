@@ -12,6 +12,11 @@ const signIn = async (req, res) => {
     const user = await Utilisateur.findOne({ email }).select("+password");
     if (!user) return res.status(400).json({ error: "Utilisateur non trouvé" });
 
+    // Vérification si l'utilisateur est actif
+    if (!user.isActive) {
+      return res.status(403).json({ error: "Compte désactivé, contactez l'administrateur" });
+    }
+
     const auth = await bcrypt.compare(password, user.password);
     if (!auth) return res.status(400).json({ error: "Mot de passe incorrect" });
 
@@ -31,29 +36,50 @@ const signIn = async (req, res) => {
   }
 };
 
+
 // Déconnexion
 const logout = (req, res) => {
   res.cookie("jwt", "", { maxAge: 1 });
   res.status(200).json({ message: "Déconnexion réussie" });
 };
 
-// Activer / désactiver un utilisateur
+// 📌 Toggle activation d'un utilisateur
 const toggleActive = async (req, res) => {
   try {
     const { id } = req.params;
-    const utilisateur = await Utilisateur.findById(id);
 
+    // On récupère l'utilisateur ciblé
+    const utilisateur = await Utilisateur.findById(id);
     if (!utilisateur) return res.status(404).json({ message: "Utilisateur non trouvé" });
 
-    utilisateur.isActive = !utilisateur.isActive;
+    if (!utilisateur.isActive) {
+      // Activation : désactive tous les autres
+      await Utilisateur.updateMany(
+        { _id: { $ne: id } },
+        { $set: { isActive: false } }
+      );
+      utilisateur.isActive = true;
+    } else {
+      // Désactivation : il devient false
+      utilisateur.isActive = false;
+    }
+
     await utilisateur.save();
 
-    res.status(200).json({ message: "Statut mis à jour", utilisateur });
+    return res.status(200).json({
+      message: `Utilisateur ${utilisateur.isActive ? "activé" : "désactivé"} avec succès`,
+      utilisateur
+    });
   } catch (err) {
     console.error("Erreur toggleActive:", err.message);
-    res.status(500).json({ message: "Erreur serveur" });
+    return res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
+module.exports = {
+  toggleActive,
+};
+
 
 // Mot de passe oublié
 const forgotPassword = async (req, res) => {

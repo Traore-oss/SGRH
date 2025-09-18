@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   adresse: { type: String },
   photo: { type: String },
   role: { type: String, enum: ["Admin", "RH", "Employe"], required: true },
+  matricule: { type: String, required: false, unique: true },
   isActive: { type: Boolean, default: true },
 
   rh: {

@@ -48,14 +48,9 @@ const SignIn: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-sm w-full">
         <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 py-6 px-4 text-center">
-            <img
-              src="/SGRH_Logo_-_Wordmark_Style-removebg-preview.png"
-              alt="Logo"
-              className="w-28 mx-auto mb-2"
-            />
-            <h2 className="text-xl font-bold text-white">Connexion SGRH</h2>
-            <p className="mt-1 text-blue-100 text-xs">Système de Gestion des Ressources Humaines</p>
+           <div className="bg-blue-600 py-4 px-20 text-center">
+            <img src="../../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" alt="Logo SGRH" className="mx-auto mb-1" />
+            <h2 className="text-lg font-semibold text-white">Connexion SGRH</h2>
           </div>
 
           <form className="px-6 py-4 space-y-4" onSubmit={handleSubmit}>

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
 import {
   Chart as ChartJS,
@@ -366,132 +366,216 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   // ===== Rendu principal =====
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 p-4">
       <ToastContainer position="top-right" />
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">Performances des employés</h1>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+          <h1 className="text-2xl font-bold text-gray-800">Performances des employés</h1>
+          <button 
+            onClick={() => setShowModal(true)} 
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto justify-center"
+          >
             <Plus size={18} /> Ajouter
           </button>
         </div>
 
-       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-  <div className="overflow-x-auto">
-    <table className="w-full">
-      <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
-        <tr>
-          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Matricule</th>
-          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nom</th>
-          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Objectif</th>
-          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Réalisation</th>
-          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Évaluation</th>
-          <th className="px-6 py-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody className="bg-white divide-y divide-gray-200">
-        {performances.map((perf, index) => (
-          <tr key={perf._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100'}>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getMatricule(perf, employees)}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{getEmployeeName(perf.employe, employees)}</td>
-            <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate" title={perf.objectif}>{perf.objectif}</td>
-            <td className="px-6 py-4 whitespace-nowrap">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(perf.realisation)}`}>
-                {perf.realisation}
-              </span>
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEvaluationBadgeClass(perf.evaluation)}`}>
-                {perf.evaluation}
-              </span>
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => handleView(perf)} 
-                  className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
-                  title="Voir détails"
-                >
-                  <Eye size={16} />
-                </button>
-                <button 
-                  onClick={() => handleEdit(perf)} 
-                  className="text-yellow-600 hover:text-yellow-900 p-2 rounded-lg hover:bg-yellow-50 transition-colors"
-                  title="Modifier"
-                >
-                  <Edit3 size={16} />
-                </button>
-                <button 
-                  onClick={() => handleDelete(perf._id!, perf)} 
-                  className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Supprimer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-  {performances.length === 0 && (
-    <div className="text-center py-12 text-gray-500">
-      <p>Aucune performance à afficher pour le moment.</p>
-    </div>
-  )}
-</div>
+        {apiError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {apiError}
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Matricule</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nom</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider hidden md:table-cell">Objectif</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Réalisation</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Évaluation</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {performances.map((perf, index) => (
+                  <tr key={perf._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100'}>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{getMatricule(perf, employees)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{getEmployeeName(perf.employe, employees)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate hidden md:table-cell" title={perf.objectif}>{perf.objectif}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(perf.realisation)}`}>
+                        {perf.realisation}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEvaluationBadgeClass(perf.evaluation)}`}>
+                        {perf.evaluation}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => handleView(perf)} 
+                          className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                          title="Voir détails"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleEdit(perf)} 
+                          className="text-yellow-600 hover:text-yellow-900 p-2 rounded-lg hover:bg-yellow-50 transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(perf._id!, perf)} 
+                          className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {performances.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              <p>Aucune performance à afficher pour le moment.</p>
+            </div>
+          )}
+        </div>
 
         {/* Modal Ajout / Édition */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-lg">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">{editingPerformance ? 'Modifier' : 'Ajouter'} performance</h2>
-                <button onClick={() => { setShowModal(false); setEditingPerformance(null); setEmployeeInfo(null); }}><X /></button>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-md mx-auto shadow-xl">
+              <div className="flex justify-between items-center p-6 border-b">
+                <h2 className="text-xl font-bold text-gray-800">{editingPerformance ? 'Modifier' : 'Ajouter'} performance</h2>
+                <button 
+                  onClick={() => { setShowModal(false); setEditingPerformance(null); setEmployeeInfo(null); }} 
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
               </div>
 
-              <div className="mb-4 flex gap-2">
-                <input type="text" placeholder="Matricule" value={formData.matricule} onChange={e => setFormData(prev => ({ ...prev, matricule: e.target.value }))} className="flex-1 px-3 py-2 border rounded" />
-                <button onClick={searchEmployee} className="px-4 py-2 bg-blue-600 text-white rounded">Rechercher</button>
+              <div className="p-6">
+                <div className="mb-4 flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Matricule" 
+                    value={formData.matricule} 
+                    onChange={e => setFormData(prev => ({ ...prev, matricule: e.target.value }))} 
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  />
+                  <button 
+                    onClick={searchEmployee} 
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Rechercher
+                  </button>
+                </div>
+
+                {employeeInfo && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="font-medium text-blue-800">Employé trouvé: {employeeInfo.prenom} {employeeInfo.nom}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <input 
+                    type="text" 
+                    placeholder="Objectif" 
+                    value={formData.objectif} 
+                    onChange={e => setFormData(prev => ({ ...prev, objectif: e.target.value }))} 
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    required 
+                  />
+                  <textarea 
+                    placeholder="Description" 
+                    value={formData.description} 
+                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} 
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    rows={3}
+                    required 
+                  />
+                  <select 
+                    value={formData.realisation} 
+                    onChange={e => setFormData(prev => ({ ...prev, realisation: e.target.value as Performance['realisation'] }))} 
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="Non démarré">Non démarré</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Terminé">Terminé</option>
+                  </select>
+                  <select 
+                    value={formData.evaluation} 
+                    onChange={e => setFormData(prev => ({ ...prev, evaluation: e.target.value as Performance['evaluation'] }))} 
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="Excellent">Excellent</option>
+                    <option value="Bon">Bon</option>
+                    <option value="Moyen">Moyen</option>
+                    <option value="Insuffisant">Insuffisant</option>
+                  </select>
+                  <button 
+                    type="submit" 
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    disabled={!employeeInfo}
+                  >
+                    {editingPerformance ? 'Modifier' : 'Ajouter'}
+                  </button>
+                </form>
               </div>
-
-              {employeeInfo && <div className="mb-4">Nom: {employeeInfo.prenom} {employeeInfo.nom}</div>}
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                <input type="text" placeholder="Objectif" value={formData.objectif} onChange={e => setFormData(prev => ({ ...prev, objectif: e.target.value }))} className="px-3 py-2 border rounded" required />
-                <textarea placeholder="Description" value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} className="px-3 py-2 border rounded" required />
-                <select value={formData.realisation} onChange={e => setFormData(prev => ({ ...prev, realisation: e.target.value as Performance['realisation'] }))} className="px-3 py-2 border rounded">
-                  <option>Non démarré</option>
-                  <option>En cours</option>
-                  <option>Terminé</option>
-                </select>
-                <select value={formData.evaluation} onChange={e => setFormData(prev => ({ ...prev, evaluation: e.target.value as Performance['evaluation'] }))} className="px-3 py-2 border rounded">
-                  <option>Excellent</option>
-                  <option>Bon</option>
-                  <option>Moyen</option>
-                  <option>Insuffisant</option>
-                </select>
-                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">{editingPerformance ? 'Modifier' : 'Ajouter'}</button>
-              </form>
             </div>
           </div>
         )}
 
         {/* Modal Vue */}
         {showViewModal && selectedPerformance && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Détails de la performance</h2>
-                <button onClick={() => setShowViewModal(false)}><X /></button>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-md mx-auto shadow-xl">
+              <div className="flex justify-between items-center p-6 border-b">
+                <h2 className="text-xl font-bold text-gray-800">Détails de la performance</h2>
+                <button 
+                  onClick={() => setShowViewModal(false)} 
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
               </div>
-              <div className="space-y-2">
-                <p><strong>Nom:</strong> {getEmployeeName(selectedPerformance.employe, employees)}</p>
-                <p><strong>Objectif:</strong> {selectedPerformance.objectif}</p>
-                <p><strong>Description:</strong> {selectedPerformance.description}</p>
-                <p><strong>Réalisation:</strong> {selectedPerformance.realisation}</p>
-                <p><strong>Évaluation:</strong> {selectedPerformance.evaluation}</p>
+              <div className="p-6 space-y-4">
+                <div>
+                  <strong className="block text-sm text-gray-600 mb-1">Nom:</strong>
+                  <p>{getEmployeeName(selectedPerformance.employe, employees)}</p>
+                </div>
+                <div>
+                  <strong className="block text-sm text-gray-600 mb-1">Objectif:</strong>
+                  <p>{selectedPerformance.objectif}</p>
+                </div>
+                <div>
+                  <strong className="block text-sm text-gray-600 mb-1">Description:</strong>
+                  <p>{selectedPerformance.description}</p>
+                </div>
+                <div>
+                  <strong className="block text-sm text-gray-600 mb-1">Réalisation:</strong>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(selectedPerformance.realisation)}`}>
+                    {selectedPerformance.realisation}
+                  </span>
+                </div>
+                <div>
+                  <strong className="block text-sm text-gray-600 mb-1">Évaluation:</strong>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEvaluationBadgeClass(selectedPerformance.evaluation)}`}>
+                    {selectedPerformance.evaluation}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

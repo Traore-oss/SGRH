@@ -117,17 +117,23 @@ const sendEmail = async (to, subject, text) => {
 };
 
 // === Récupérer tous les congés ===
+// === Récupérer tous les congés ===
 exports.getAllConges = async (req, res) => {
   try {
-    // sécurité : vérifier authentification
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: "Utilisateur non authentifié" });
     }
 
     let conges;
 
-    if (req.user.role === "RH") {
-      // ➡️ RH : récupérer tous les employés créés par ce RH
+    if (req.user.role === "Admin") {
+      // ➡️ Admin : voir TOUS les congés
+      conges = await Conge.find()
+        .populate("employe", "nom prenom employer")
+        .sort({ createdAt: -1 });
+    } 
+    else if (req.user.role === "RH") {
+      // ➡️ RH : récupérer les congés de ses employés
       const employes = await User.find({
         "employer.createdByrh": req.user._id,
       }).select("_id");
@@ -138,12 +144,12 @@ exports.getAllConges = async (req, res) => {
         return res.status(200).json([]);
       }
 
-      // ➡️ Récupérer les congés des employés gérés par ce RH
       conges = await Conge.find({ employe: { $in: employeIds } })
         .populate("employe", "nom prenom employer")
-        .sort({ createdAt: -1 }); // du plus récent au plus ancien
-    } else {
-      // ➡️ Employé : voir uniquement ses propres congés
+        .sort({ createdAt: -1 });
+    } 
+    else {
+      // ➡️ Employé : uniquement ses congés
       conges = await Conge.find({ employe: req.user._id })
         .populate("employe", "nom prenom employer")
         .sort({ createdAt: -1 });
@@ -151,10 +157,28 @@ exports.getAllConges = async (req, res) => {
 
     return res.status(200).json(conges);
   } catch (err) {
-    console.error("getAllConges error:", err);
     return res.status(500).json({
       message: "Erreur lors de la récupération des congés",
       error: err.message,
     });
+  }
+};
+
+// === Supprimer un congé (Admin) ===
+exports.supprimerConge = async (req, res) => {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({ message: "Accès refusé. Seul l'Admin peut supprimer un congé." });
+    }
+
+    const conge = await Conge.findByIdAndDelete(req.params.id);
+
+    if (!conge) {
+      return res.status(404).json({ message: "Congé introuvable" });
+    }
+
+    res.status(200).json({ message: "Congé supprimé avec succès" });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la suppression du congé", error: err.message });
   }
 };

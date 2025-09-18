@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
 
 const recrutementSchema = new mongoose.Schema({
-       rh: {
-              type: mongoose.Schema.Types.ObjectId,
-              ref: 'Utilisateur',
-              required: true
-            },
+  rh: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Utilisateur',
+    required: true
+  },
   poste: { type: String, required: true },
   description: { type: String, required: true },
   departement: { type: mongoose.Schema.Types.ObjectId, ref: "Departement" },

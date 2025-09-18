@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export interface Departement {
@@ -37,9 +38,14 @@ export interface Employee {
   telephoneUrgence?: string;
   numeroCIN?: string;
   numeroCNSS?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  employer?: any; // sous-document employé (matricule, createdByrh, etc.)
+  employer?: any; // sous-document employé
 }
+
+export interface ToggleResponse {
+  message: string;
+  utilisateur: Employee;
+}
+
 // Tous les employés
 export const getEmployees = async (): Promise<Employee[]> => {
   const res = await fetch(`${API_BASE}/api/users/`, { credentials: "include" });
@@ -48,14 +54,14 @@ export const getEmployees = async (): Promise<Employee[]> => {
 };
 
 // Employé par ID
-export const getEmployeeById = async (id: string) => {
+export const getEmployeeById = async (id: string): Promise<Employee> => {
   const res = await fetch(`${API_BASE}/api/users/${id}`, { credentials: "include" });
   if (!res.ok) throw new Error("Employé non trouvé");
   return await res.json();
 };
 
 // Créer un employé
-export const createEmployee = async (formData: FormData) => {
+export const createEmployee = async (formData: FormData): Promise<Employee> => {
   const res = await fetch(`${API_BASE}/api/users/`, {
     method: "POST",
     credentials: "include",
@@ -66,7 +72,7 @@ export const createEmployee = async (formData: FormData) => {
 };
 
 // Mettre à jour un employé
-export const updateEmployee = async (id: string, formData: FormData) => {
+export const updateEmployee = async (id: string, formData: FormData): Promise<Employee> => {
   const res = await fetch(`${API_BASE}/api/users/${id}`, {
     method: "PUT",
     credentials: "include",
@@ -76,14 +82,19 @@ export const updateEmployee = async (id: string, formData: FormData) => {
   return await res.json();
 };
 
-// Activer / désactiver
-export const toggleEmployeeActive = async (id: string, isActive: boolean) => {
-  const res = await fetch(`${API_BASE}/api/auth/toggleActive/${id}`, {
+// Activer / désactiver un employé
+export const toggleEmployeeActive = async (id: string): Promise<ToggleResponse> => {
+  const res = await fetch(`${API_BASE}/api/auth/toggle-active/${id}`, {
     method: "PATCH",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ isActive }),
   });
-  if (!res.ok) throw new Error("Erreur toggle employé");
-  return await res.json();
+
+  if (!res.ok) {
+    const errData = await res.json();
+    throw new Error(errData.message || "Erreur toggle employé");
+  }
+
+  const data: ToggleResponse = await res.json();
+  return data;
 };

@@ -24,7 +24,7 @@ const recrutementSchema = new mongoose.Schema({
   departement: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Departement",
-    required: false, // facultatif
+    required: false,
   },
   statut: {
     type: String,

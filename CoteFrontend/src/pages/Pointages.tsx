@@ -58,11 +58,40 @@ const getEmployees = async (): Promise<Employee[]> => {
   }
 };
 
+// const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> => {
+//   try {
+//     const res = await fetch(`${API_BASE}/api/pointages/getAttendances?date=${date}`, { credentials: "include" });
+//     if (!res.ok) throw new Error("Erreur lors de la récupération des présences");
+//     return await res.json();
+//   } catch (err) {
+//     console.error(err);
+//     return [];
+//   }
+// };
 const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> => {
   try {
-    const res = await fetch(`${API_BASE}/api/pointages/getAttendances?date=${date}`, { credentials: "include" });
+    const res = await fetch(`${API_BASE}/api/pointages?date=${date}`, {
+      credentials: "include",
+    });
     if (!res.ok) throw new Error("Erreur lors de la récupération des présences");
-    return await res.json();
+    const data = await res.json();
+
+    // Normaliser les données pour le frontend
+    return data.map((d: any) => ({
+      employe: {
+        _id: d.employe._id,
+        nom: d.employe.nom,
+        prenom: d.employe.prenom,
+        matricule: d.employe.matricule || d.matricule, // fallback si backend ajoute matricule séparé
+        employer: d.employe.employer,
+      },
+      date: d.date.split("T")[0], // garder seulement YYYY-MM-DD
+      statut: d.statut,
+      heureArrivee: d.heureArrivee,
+      heureDepart: d.heureDepart,
+      heuresTravaillees: d.heuresTravaillees,
+      retard: d.retard,
+    }));
   } catch (err) {
     console.error(err);
     return [];
@@ -142,52 +171,84 @@ const AttendanceManager: React.FC = () => {
   }, []);
 
   // === Fetch et gestion historique ===
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const today = new Date().toISOString().split("T")[0];
+  // const fetchData = async () => {
+  //   try {
+  //     setIsLoading(true);
+  //     const today = new Date().toISOString().split("T")[0];
 
-      // Historique complet
-      const attendanceHistoryStr = localStorage.getItem("attendanceHistory");
-      const attendanceHistory: Record<string, AttendanceRecord[]> = attendanceHistoryStr
-        ? JSON.parse(attendanceHistoryStr)
-        : {};
+  //     // Historique complet
+  //     const attendanceHistoryStr = localStorage.getItem("attendanceHistory");
+  //     const attendanceHistory: Record<string, AttendanceRecord[]> = attendanceHistoryStr
+  //       ? JSON.parse(attendanceHistoryStr)
+  //       : {};
 
-      const employeesData = await getEmployees();
-      let attendanceData: AttendanceRecord[] = [];
+  //     const employeesData = await getEmployees();
+  //     let attendanceData: AttendanceRecord[] = [];
 
-      if (attendanceHistory[today]) {
-        attendanceData = attendanceHistory[today];
-      } else {
-        const apiData = await getAttendancesByDate(today);
-        attendanceData = employeesData.map(emp => {
-          const record = apiData.find(a => a.employe._id === emp._id);
-          return record
-            ? { ...record, employe: emp }
-            : {
-                employe: emp,
-                date: today,
-                statut: "Absent",
-                heureArrivee: "-",
-                heureDepart: "-",
-                heuresTravaillees: "-",
-                retard: "-",
-              };
-        });
-        // Sauvegarder dans l'historique
-        attendanceHistory[today] = attendanceData;
-        localStorage.setItem("attendanceHistory", JSON.stringify(attendanceHistory));
-      }
+  //     if (attendanceHistory[today]) {
+  //       attendanceData = attendanceHistory[today];
+  //     } else {
+  //       const apiData = await getAttendancesByDate(today);
+  //       attendanceData = employeesData.map(emp => {
+  //         const record = apiData.find(a => a.employe._id === emp._id);
+  //         return record
+  //           ? { ...record, employe: emp }
+  //           : {
+  //               employe: emp,
+  //               date: today,
+  //               statut: "Absent",
+  //               heureArrivee: "-",
+  //               heureDepart: "-",
+  //               heuresTravaillees: "-",
+  //               retard: "-",
+  //             };
+  //       });
+  //       // Sauvegarder dans l'historique
+  //       attendanceHistory[today] = attendanceData;
+  //       localStorage.setItem("attendanceHistory", JSON.stringify(attendanceHistory));
+  //     }
 
-      setEmployees(employeesData);
-      setAttendance(attendanceData);
-      setIsLoading(false);
-      showNotification("success", "Données chargées avec succès");
-    } catch {
-      setIsLoading(false);
-      showNotification("error", "Erreur lors du chargement des données");
-    }
-  };
+  //     setEmployees(employeesData);
+  //     setAttendance(attendanceData);
+  //     setIsLoading(false);
+  //     showNotification("success", "Données chargées avec succès");
+  //   } catch {
+  //     setIsLoading(false);
+  //     showNotification("error", "Erreur lors du chargement des données");
+  //   }
+  // };
+const fetchData = async () => {
+  try {
+    setIsLoading(true);
+    const today = new Date().toISOString().split("T")[0];
+
+    const employeesData = await getEmployees();
+    const apiData = await getAttendancesByDate(today);
+
+    const attendanceData = employeesData.map(emp => {
+      const record = apiData.find(a => a.employe._id === emp._id);
+      return record
+        ? record
+        : {
+            employe: emp,
+            date: today,
+            statut: "Absent",
+            heureArrivee: "-",
+            heureDepart: "-",
+            heuresTravaillees: "-",
+            retard: "-",
+          };
+    });
+
+    setEmployees(employeesData);
+    setAttendance(attendanceData);
+    setIsLoading(false);
+    showNotification("success", "Données chargées avec succès");
+  } catch {
+    setIsLoading(false);
+    showNotification("error", "Erreur lors du chargement des données");
+  }
+};
 
   useEffect(() => {
     fetchData();

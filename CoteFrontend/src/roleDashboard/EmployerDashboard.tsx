@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
+
 import { 
   Calendar, 
   Clock, 
@@ -11,14 +11,14 @@ import {
   Briefcase,
   ChevronDown,
   Bell,
-  X
+  X,
+  PieChart
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useState, useEffect, useCallback } from 'react';
-// import { getAttendancesByDate, type AttendanceRecor } from "../Components/PointageServices";
 import { getDemandesConge } from "../Components/CongesService";
 import { getAttendancesByDate, type AttendanceRecord } from "../Components/PointageServices";
 
@@ -235,28 +235,200 @@ export const EmployeeDashboard: React.FC = () => {
 
 // Composants internes
 const EmployeeOverview: React.FC = () => {
+  const { user } = useAuth();
+  const [conges, setConges] = useState<DemandeConge[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchConges = async () => {
+      try {
+        const demandesData = await getDemandesConge();
+        // Filtrer pour n'avoir que les congés de l'employé connecté
+        const userConges = demandesData.filter(conge => {
+          const employeId = typeof conge.employe === 'string' ? conge.employe : conge.employe._id;
+          return employeId === user?.id;
+        });
+        setConges(userConges);
+      } catch (err: any) {
+        console.error(err);
+        toast.error("Erreur lors de la récupération des congés");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.id) {
+      fetchConges();
+    }
+  }, [user]);
+
+  // Calculer les statistiques des congés
+  const totalConges = conges.length;
+  const congesApprouves = conges.filter(c => c.etat?.toLowerCase() === "approuvé").length;
+  const congesEnAttente = conges.filter(c => c.etat?.toLowerCase() === "en attente").length;
+  const congesRefuses = conges.filter(c => c.etat?.toLowerCase() === "refusé").length;
+
+  // Calculer la répartition par type de congé
+  const typeCongeStats = conges.reduce((acc, conge) => {
+    const type = conge.typeConge || 'Non spécifié';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Préparer les données pour le diagramme
+  const chartData = Object.entries(typeCongeStats).map(([type, count], index) => {
+    const colors = ['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6'];
+    return {
+      type,
+      count,
+      color: colors[index % colors.length],
+      percentage: totalConges > 0 ? Math.round((count / totalConges) * 100) : 0
+    };
+  });
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { icon: Calendar, bg: 'bg-green-500', value: '18', label: 'Jours de congé' },
-          { icon: Clock, bg: 'bg-blue-500', value: '8h15', label: 'Heures aujourd\'hui' },
-          { icon: Target, bg: 'bg-purple-500', value: '75%', label: 'Objectifs' },
-          { icon: Award, bg: 'bg-yellow-500', value: '4.2/5', label: 'Performance' }
-        ].map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <div key={index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${card.bg}`}><Icon className="h-5 w-5 text-white" /></div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{card.value}</p>
-                  <p className="text-sm text-gray-500">{card.label}</p>
-                </div>
+          { icon: Calendar, bg: 'bg-green-500', value: totalConges, label: 'Total congés' },
+          { icon: Award, bg: 'bg-blue-500', value: congesApprouves, label: 'Congés approuvés' },
+          { icon: Clock, bg: 'bg-yellow-500', value: congesEnAttente, label: 'En attente' },
+          { icon: X, bg: 'bg-red-500', value: congesRefuses, label: 'Congés refusés' },
+        ].map((card, index) => (
+          <div key={index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className={`p-2 rounded-lg ${card.bg}`}>
+                <card.icon className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-800">{card.value}</p>
+                <p className="text-sm text-gray-500">{card.label}</p>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Diagramme de répartition des congés */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Répartition des congés par type</h3>
+            <PieChart className="h-5 w-5 text-gray-500" />
+          </div>
+          
+          {totalConges === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Aucun congé enregistré</p>
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+              <div className="flex-1">
+                <div className="space-y-3">
+                  {chartData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-sm font-medium text-gray-700">{item.type}</span>
+                      </div>
+                      <span className="text-sm text-gray-500">{item.count} ({item.percentage}%)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="relative w-40 h-40">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                  {chartData.reduce((acc, item, index) => {
+                    const circumference = 2 * Math.PI * 40;
+                    const strokeDasharray = (item.percentage / 100) * circumference;
+                    const strokeDashoffset = acc.offset;
+                    
+                    acc.elements.push(
+                      <circle
+                        key={index}
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke={item.color}
+                        strokeWidth="8"
+                        strokeDasharray={strokeDasharray}
+                        strokeDashoffset={strokeDashoffset}
+                        transform="rotate(-90 50 50)"
+                      />
+                    );
+                    
+                    acc.offset -= strokeDasharray;
+                    return acc;
+                  }, { elements: [] as JSX.Element[], offset: circumference }).elements}
+                  
+                  <text x="50" y="50" textAnchor="middle" dy="0.3em" fontSize="12" fontWeight="bold" fill="#374151">
+                    {totalConges}
+                  </text>
+                </svg>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Derniers congés */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Dernières demandes de congé</h3>
+          
+          {conges.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Aucune demande de congé</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {conges.slice(0, 3).map((conge) => {
+                const dateDebut = new Date(conge.dateDebut);
+                const dateFin = new Date(conge.dateFin);
+                const duree = Math.ceil((dateFin.getTime() - dateDebut.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                
+                let badgeColor = "";
+                if (conge.etat?.toLowerCase() === "approuvé") {
+                  badgeColor = "bg-green-100 text-green-800";
+                } else if (conge.etat?.toLowerCase() === "refusé") {
+                  badgeColor = "bg-red-100 text-red-800";
+                } else if (conge.etat?.toLowerCase() === "en attente") {
+                  badgeColor = "bg-yellow-100 text-yellow-800";
+                } else {
+                  badgeColor = "bg-gray-100 text-gray-800";
+                }
+
+                return (
+                  <div key={conge._id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-800">{conge.typeConge}</p>
+                        <p className="text-sm text-gray-600">
+                          {dateDebut.toLocaleDateString('fr-FR')} - {dateFin.toLocaleDateString('fr-FR')}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${badgeColor}`}>
+                        {conge.etat}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{duree} jour{duree > 1 ? 's' : ''}</p>
+                  </div>
+                );
+              })}
+              
+              {conges.length > 3 && (
+                <div className="text-center pt-2">
+                  <button 
+                    onClick={() => window.location.hash = '#leaves'}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Voir tous mes congés
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -799,7 +971,7 @@ export default EmployeeDashboard;
 function markArrival(id: string) {
   throw new Error("Function not implemented.");
 }
+
 function markDeparture(id: string) {
   throw new Error("Function not implemented.");
 }
-

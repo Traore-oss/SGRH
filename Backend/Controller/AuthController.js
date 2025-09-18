@@ -44,6 +44,7 @@ const logout = (req, res) => {
 };
 
 // 📌 Toggle activation d'un utilisateur
+// 📌 Toggle activation d'un utilisateur (corrigé)
 const toggleActive = async (req, res) => {
   try {
     const { id } = req.params;
@@ -52,17 +53,8 @@ const toggleActive = async (req, res) => {
     const utilisateur = await Utilisateur.findById(id);
     if (!utilisateur) return res.status(404).json({ message: "Utilisateur non trouvé" });
 
-    if (!utilisateur.isActive) {
-      // Activation : désactive tous les autres
-      await Utilisateur.updateMany(
-        { _id: { $ne: id } },
-        { $set: { isActive: false } }
-      );
-      utilisateur.isActive = true;
-    } else {
-      // Désactivation : il devient false
-      utilisateur.isActive = false;
-    }
+    // Inverse seulement son état
+    utilisateur.isActive = !utilisateur.isActive;
 
     await utilisateur.save();
 
@@ -75,6 +67,7 @@ const toggleActive = async (req, res) => {
     return res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
 
 module.exports = {
   toggleActive,

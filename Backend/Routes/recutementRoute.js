@@ -1,11 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const recrutementController = require("../Controller/RecurtementController");
+const { createOffre, getOffres, addCandidat, updateOffre, deleteOffre } = require("../Controller/RecurtementController");
+const { requireAuth } = require("../midlewere/authmidleware");
 
-router.post("/", recrutementController.createOffre);
-router.get("/", recrutementController.getOffres);
-router.put("/:id", recrutementController.updateOffre);
-router.delete("/:id", recrutementController.deleteOffre);
-router.post("/:id/candidats", recrutementController.addCandidat);
+router.get("/", requireAuth, getOffres);
+router.post("/", requireAuth, createOffre);
+router.post("/:offreId/candidats", addCandidat);
+router.put("/:offreId", requireAuth, updateOffre);
+router.delete("/:offreId", requireAuth, deleteOffre);
 
 module.exports = router;

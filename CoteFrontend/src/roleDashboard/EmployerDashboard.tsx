@@ -18,8 +18,39 @@ import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useState, useEffect, useCallback } from 'react';
-import { getAttendancesByDate, type AttendanceRecord } from "../Components/PointageServices";
+// import { getAttendancesByDate, type AttendanceRecor } from "../Components/PointageServices";
 import { getDemandesConge } from "../Components/CongesService";
+import { getAttendancesByDate, type AttendanceRecord } from "../Components/PointageServices";
+
+const API_BASE = "http://localhost:8000/api";
+
+// Types
+interface Employee {
+  id: any;
+  _id: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+  email: string;
+  departement?: {
+    _id: string;
+    nom: string;
+  };
+}
+
+interface DemandeConge {
+  _id: string;
+  employe: string | Employee;
+  dateDebut: string;
+  dateFin: string;
+  typeConge: string;
+  nbJours: number;
+  motif?: string;
+  etat: string;
+  commentaireResponsable?: string;
+  dateSoumission: string;
+  dateValidation?: string;
+}
 
 type EmployeeView = 'dashboard' | 'profile' | 'leaves' | 'attendance' | 'goals' | 'payslips';
 
@@ -38,6 +69,19 @@ export const EmployeeDashboard: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -90,7 +134,7 @@ export const EmployeeDashboard: React.FC = () => {
       <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="light" />
 
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+      <div className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'} ${isMobile && !sidebarCollapsed ? 'ml-0' : ''}`}>
         <div className="p-4 flex items-center space-x-3">
           <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <Menu className="h-5 w-5 text-gray-800" />
@@ -110,7 +154,10 @@ export const EmployeeDashboard: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id as EmployeeView)}
+                onClick={() => {
+                  setActiveView(item.id as EmployeeView);
+                  if (isMobile) setSidebarCollapsed(true);
+                }}
                 className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${isActive ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
                 title={sidebarCollapsed ? item.label : ''}
               >
@@ -129,11 +176,19 @@ export const EmployeeDashboard: React.FC = () => {
         </div>
       </div>
 
-      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+      {/* Overlay for mobile */}
+      {isMobile && !sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
+      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'} ${isMobile ? 'ml-0' : ''}`}>
+        <header className="bg-white shadow-sm border-b border-gray-200 px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
               <p className="text-sm text-gray-600">Bonjour, {user.prenom} {user.nom}</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -156,7 +211,7 @@ export const EmployeeDashboard: React.FC = () => {
                       <div className="text-xs text-gray-500">{user.email}</div>
                     </div>
                     <div className="py-1">
-                      <button onClick={() => setActiveView('profile')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mon profil</button>
+                      <button onClick={() => { setActiveView('profile'); setShowUserDropdown(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mon profil</button>
                       <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Paramètres</button>
                     </div>
                     <div className="border-t border-gray-200 py-1">
@@ -172,22 +227,17 @@ export const EmployeeDashboard: React.FC = () => {
           </div>
         </header>
 
-        <div className="p-6">{renderView()}</div>
+        <div className="p-4 md:p-6 overflow-x-auto">{renderView()}</div>
       </main>
     </div>
   );
 };
 
-/* ==========================================
-   Composants internes
-========================================== */
-
-// Aperçu de l'employé
+// Composants internes
 const EmployeeOverview: React.FC = () => {
   return (
     <div className="space-y-6">
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { icon: Calendar, bg: 'bg-green-500', value: '18', label: 'Jours de congé' },
           { icon: Clock, bg: 'bg-blue-500', value: '8h15', label: 'Heures aujourd\'hui' },
@@ -212,15 +262,14 @@ const EmployeeOverview: React.FC = () => {
   );
 };
 
-// Profil
 const EmployeeProfile: React.FC = () => {
   const { user } = useAuth();
   if (!user) return null;
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Informations</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
             <p className="text-gray-800">{user.prenom} {user.nom}</p>
@@ -253,58 +302,14 @@ const EmployeeProfile: React.FC = () => {
   );
 };
 
-/* EmployeeLeaves, EmployeeAttendance, EmployeeGoals, EmployeePayslips
-   restent globalement identiques à ton code, mais les imports doublés et fonctions inutiles ont été nettoyés.
-*/
-
-
-import "react-toastify/dist/ReactToastify.css";
-const API_BASE = "http://localhost:8000/api";
-
-// Types pour le service Congé
-interface CreerCongeRequest {
-  employeId: string;
-  typeConge: string;
-  dateDebut: string;
-  dateFin: string;
-  raison: string;
-}
-// Types
-interface Employee {
-  id: any;
-  _id: string;
-  nom: string;
-  prenom: string;
-  matricule: string;
-  email: string;
-  departement?: {
-    _id: string;
-    nom: string;
-  };
-}
-
-interface DemandeConge {
-  _id: string;
-  employe: string | Employee;
-  dateDebut: string;
-  dateFin: string;
-  typeConge: string;
-  nbJours: number;
-  motif?: string;
-  etat: string;
-  commentaireResponsable?: string;
-  dateSoumission: string;
-  dateValidation?: string;
-}
-
 // Service pour créer un congé
-const creerConge = async (data: CreerCongeRequest) => {
+const creerConge = async (data: any) => {
   const res = await axios.post(`${API_BASE}/conges/creerConge`, data, { withCredentials: true });
   return res.data;
 };
 
 // Composant EmployeeLeaves
-export const EmployeeLeaves: React.FC = () => {
+const EmployeeLeaves: React.FC = () => {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -316,22 +321,19 @@ export const EmployeeLeaves: React.FC = () => {
     motif: "",
   });
 
-  // Charger les congés de l'employé
-useEffect(() => {
-  const fetchConges = async () => {
-    try {
-      const demandesData = await getDemandesConge(); // backend renvoie toujours []
-      console.log(demandesData);
-      setConges(demandesData);
-    } catch (err: any) {
-      console.error(err);
-      toast.error("Erreur lors de la récupération des congés");
-    }
-  };
+  useEffect(() => {
+    const fetchConges = async () => {
+      try {
+        const demandesData = await getDemandesConge();
+        setConges(demandesData);
+      } catch (err: any) {
+        console.error(err);
+        toast.error("Erreur lors de la récupération des congés");
+      }
+    };
 
-  fetchConges();
-}, []);
-
+    fetchConges();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -350,7 +352,7 @@ useEffect(() => {
     }
 
     try {
-      const requestData: CreerCongeRequest = {
+      const requestData = {
         employeId,
         typeConge: formData.typeConge,
         dateDebut: formData.dateDebut,
@@ -380,22 +382,8 @@ useEffect(() => {
 
   return (
     <div className="space-y-6">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        {/* Header du formulaire */}
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <h3 className="text-lg font-semibold text-gray-800">Mes Demandes de Congé</h3>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -414,9 +402,8 @@ useEffect(() => {
           </button>
         </div>
 
-        {/* Formulaire */}
         {showForm && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6 mb-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Nouvelle Demande de Congé</h3>
             <div className="mb-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
@@ -490,101 +477,87 @@ useEffect(() => {
           </div>
         )}
 
-{/* Historique des congés */}
-<div className="mt-8">
-  <h4 className="text-lg font-bold text-gray-800 mb-6">Historique de mes congés</h4>
+        <div className="mt-8">
+          <h4 className="text-lg font-bold text-gray-800 mb-6">Historique de mes congés</h4>
 
-  {conges.length === 0 ? (
-    <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      <h3 className="mt-4 text-sm font-medium text-gray-900">Aucun congé enregistré</h3>
-      <p className="mt-1 text-sm text-gray-500">Vous n'avez fait aucune demande de congé pour le moment.</p>
-    </div>
-  ) : (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type de congé
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Période
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Durée
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Motif
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Commentaire RH
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                État
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {conges.map((c) => {
-              // Calcul de la durée en jours
-              const dateDebut = new Date(c.dateDebut);
-              const dateFin = new Date(c.dateFin);
-              const duree = Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24)) + 1;
-              
-              // Définir la couleur du badge selon l'état
-              let badgeColor = "";
-              if (c.etat?.toLowerCase() === "approuvé") {
-                badgeColor = "bg-green-100 text-green-800";
-              } else if (c.etat?.toLowerCase() === "refusé") {
-                badgeColor = "bg-red-100 text-red-800";
-              } else if (c.etat?.toLowerCase() === "en attente") {
-                badgeColor = "bg-yellow-100 text-yellow-800";
-              } else {
-                badgeColor = "bg-gray-100 text-gray-800";
-              }
+          {conges.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h3 className="mt-4 text-sm font-medium text-gray-900">Aucun congé enregistré</h3>
+              <p className="mt-1 text-sm text-gray-500">Vous n'avez fait aucune demande de congé pour le moment.</p>
+            </div>
+          ) : (
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Période
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Durée
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        État
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {conges.map((c) => {
+                      const dateDebut = new Date(c.dateDebut);
+                      const dateFin = new Date(c.dateFin);
+                      const duree = Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24)) + 1;
+                      
+                      let badgeColor = "";
+                      if (c.etat?.toLowerCase() === "approuvé") {
+                        badgeColor = "bg-green-100 text-green-800";
+                      } else if (c.etat?.toLowerCase() === "refusé") {
+                        badgeColor = "bg-red-100 text-red-800";
+                      } else if (c.etat?.toLowerCase() === "en attente") {
+                        badgeColor = "bg-yellow-100 text-yellow-800";
+                      } else {
+                        badgeColor = "bg-gray-100 text-gray-800";
+                      }
 
-              return (
-                <tr key={c._id} className="hover:bg-gray-50 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{c.typeConge}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {new Date(c.dateDebut).toLocaleDateString('fr-FR')} 
-                      <span className="text-gray-400 mx-1">→</span>
-                      {new Date(c.dateFin).toLocaleDateString('fr-FR')}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{duree} jour{duree > 1 ? 's' : ''}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">{c.motif}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-500 max-w-xs truncate">
-                      {c.commentaireResponsable || <span className="text-gray-400">-</span>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}`}>
-                      {c.etat}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )}
-</div>
-
+                      return (
+                        <tr key={c._id} className="hover:bg-gray-50 transition-colors duration-150">
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{c.typeConge}</div>
+                            <div className="text-sm text-gray-500 truncate max-w-xs">{c.motif}</div>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(c.dateDebut).toLocaleDateString('fr-FR')} 
+                              <span className="text-gray-400 mx-1">→</span>
+                              {new Date(c.dateFin).toLocaleDateString('fr-FR')}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{duree} jour{duree > 1 ? 's' : ''}</div>
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}`}>
+                              {c.etat}
+                            </span>
+                            <div className="text-sm text-gray-500 mt-1 max-w-xs truncate">
+                              {c.commentaireResponsable || <span className="text-gray-400">-</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -595,12 +568,11 @@ interface EmployeeAttendanceProps {
 }
 
 const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔹 Récupération de l'historique des présences
   const fetchAttendanceHistory = useCallback(async () => {
     if (!user?.id) {
       setError("Utilisateur non défini");
@@ -654,37 +626,42 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
     if (user?.id) fetchAttendanceHistory();
   }, [fetchAttendanceHistory, user]);
 
-  // 🔹 Pointer l'arrivée
-  const markArrival = async () => {
+  const handleMarkArrival = async () => {
     if (!user?.id) return;
-    const today = new Date().toLocaleDateString("fr-CA");
-    await updatePresence(user.id, today, true);
-    fetchAttendanceHistory();
+    try {
+      await markArrival(user.id);
+      toast.success("Arrivée pointée avec succès");
+      fetchAttendanceHistory();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors du pointage");
+    }
   };
 
-  // 🔹 Pointer le départ
-  const markDeparture = async () => {
+  const handleMarkDeparture = async () => {
     if (!user?.id) return;
-    const today = new Date().toLocaleDateString("fr-CA");
-    await setDeparture(user.id, today);
-    fetchAttendanceHistory();
+    try {
+      await markDeparture(user.id);
+      toast.success("Départ pointé avec succès");
+      fetchAttendanceHistory();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors du pointage");
+    }
   };
 
-  if (authLoading || loading) return <p>Chargement des présences...</p>;
+  if (loading) return <p>Chargement des présences...</p>;
   if (!user) return <p className="text-red-500">Veuillez vous connecter pour voir vos présences.</p>;
   if (error) return <p className="text-red-500">{error}</p>;
 
   const todayStr = new Date().toLocaleDateString("fr-CA");
-  const todayRecord =
-    attendanceHistory.find((r) => r.date === todayStr) || {
-      employe: user as unknown as Employee,
-      date: todayStr,
-      statut: "Absent",
-      heureArrivee: "-",
-      heureDepart: "-",
-      heuresTravaillees: "-",
-      retard: "-",
-    };
+  const todayRecord = attendanceHistory.find((r) => r.date === todayStr) || {
+    employe: user as unknown as Employee,
+    date: todayStr,
+    statut: "Absent",
+    heureArrivee: "-",
+    heureDepart: "-",
+    heuresTravaillees: "-",
+    retard: "-",
+  };
 
   const formatDateLabel = (dateStr: string) => {
     const today = new Date().toLocaleDateString("fr-CA");
@@ -705,14 +682,14 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Présences</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <button
-            onClick={markArrival}
+            onClick={handleMarkArrival}
             disabled={todayRecord.heureArrivee !== "-" && todayRecord.heureArrivee !== undefined}
-            className={`p-4 rounded-lg transition-colors ${
+            className={`p-4 rounded-lg transition-colors flex flex-col items-center ${
               todayRecord.heureArrivee !== "-" ? "bg-gray-50 cursor-not-allowed" : "bg-green-50 hover:bg-green-100"
             }`}
           >
@@ -722,9 +699,9 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
           </button>
 
           <button
-            onClick={markDeparture}
+            onClick={handleMarkDeparture}
             disabled={todayRecord.heureArrivee === "-" || todayRecord.heureDepart !== "-"}
-            className={`p-4 rounded-lg transition-colors ${
+            className={`p-4 rounded-lg transition-colors flex flex-col items-center ${
               todayRecord.heureArrivee === "-" ? "bg-gray-50 cursor-not-allowed" : "bg-red-50 hover:bg-red-100"
             }`}
           >
@@ -755,7 +732,7 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
 const EmployeeGoals: React.FC = () => {
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Objectifs</h3>
         <div className="space-y-4">
           <div className="p-4 bg-blue-50 rounded-lg">
@@ -787,7 +764,7 @@ const EmployeeGoals: React.FC = () => {
 const EmployeePayslips: React.FC = () => {
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Bulletins de Paie</h3>
         <div className="space-y-3">
           {[
@@ -796,12 +773,12 @@ const EmployeePayslips: React.FC = () => {
             { month: 'Avril 2024', amount: '3,200€', status: 'Payé' },
             { month: 'Mars 2024', amount: '3,200€', status: 'Payé' }
           ].map((payslip, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-2">
               <div>
                 <h4 className="font-medium text-gray-800">{payslip.month}</h4>
                 <p className="text-sm text-gray-600">Salaire net: {payslip.amount}</p>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 self-end sm:self-auto">
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   {payslip.status}
                 </span>
@@ -817,10 +794,12 @@ const EmployeePayslips: React.FC = () => {
   );
 };
 
-function updatePresence(_id: string, today: string, arg2: boolean) {
+export default EmployeeDashboard;
+
+function markArrival(id: string) {
   throw new Error("Function not implemented.");
 }
-function setDeparture(_id: string, today: string) {
+function markDeparture(id: string) {
   throw new Error("Function not implemented.");
 }
 

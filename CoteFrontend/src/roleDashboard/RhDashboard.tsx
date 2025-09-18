@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import axios from "axios";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,7 @@ import { Departments } from "../pages/Departement";
 import { PerformanceEmployer } from "../pages/Performance";
 import { Reports } from "../pages/Rapport";
 import SuiviFormations from "../pages/Formation"
+import Recrutement from "../pages/OffreEmploi"
 import { toggleEmployeeActive } from "../Components/ServiceEmployer";
 
 // Configuration de l'API
@@ -167,18 +169,19 @@ const InfoItem: React.FC<{ label: string; value: React.ReactNode; isFullWidth?: 
 type HRView =
   | "dashboard"
   | "users"
-  | "CongesManager"
+  | "Recrutement"
   | "attendance"
   | "departments"
   | "reports"
   | "recruitment"
   | "performance"
   | "formation"
+  |  "CongesManager"
 
 const hrMenuItems = [
   { id: "dashboard", label: "Tableau de Bord", icon: Heart },
   { id: "users", label: "Utilisateurs", icon: Users },
-  { id: "recruitment", label: "Recrutement", icon: UserPlus },
+  { id: "Recrutement", label: "Recrutement", icon: UserPlus },
   { id: "CongesManager", label: "Congés", icon: Calendar },
   { id: "attendance", label: "Présences", icon: Clock },
   { id: "performance", label: "Performances", icon: FileText },
@@ -400,82 +403,6 @@ const Dashboard: React.FC = () => {
 };
 
 // Composant de gestion du recrutement (RH)
-const RecruitmentManagement: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-blue-500">
-              <FileText className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">12</p>
-              <p className="text-sm text-gray-500">Offres actives</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-green-500">
-              <Users className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">45</p>
-              <p className="text-sm text-gray-500">Candidatures</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-yellow-500">
-              <Clock className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">8</p>
-              <p className="text-sm text-gray-500">Entretiens</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-purple-500">
-              <UserPlus className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-800">3</p>
-              <p className="text-sm text-gray-500">Embauches</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Processus de Recrutement</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-            <div>
-              <h4 className="font-medium text-gray-800">Développeur Full Stack</h4>
-              <p className="text-sm text-gray-600">15 candidatures • 3 entretiens planifiés</p>
-            </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-              Gérer
-            </button>
-          </div>
-          <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-            <div>
-              <h4 className="font-medium text-gray-800">Assistant RH</h4>
-              <p className="text-sm text-gray-600">8 candidatures • 2 entretiens terminés</p>
-            </div>
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-              Gérer
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Composant pour afficher la gestion des employés avec les fonctionnalités complètes
 export const UserManagement: React.FC = () => {
@@ -964,8 +891,8 @@ export const HRDashboard: React.FC = () => {
         return <Departments />
       case "reports":
         return <Reports />
-      case "recruitment":
-        return <RecruitmentManagement />
+      case "Recrutement":
+        return <Recrutement />
       case "performance":
         return <PerformanceEmployer />
       case "formation":
@@ -979,7 +906,7 @@ export const HRDashboard: React.FC = () => {
     const titles = {
       dashboard: "Tableau de Bord RH",
       users: "Gestion des Employés",
-      recruitment: "Gestion du Recrutement",
+      Recrutement: "Gestion du Recrutement",
       CongesManager: "Validation des Congés",
       attendance: "Suivi des Présences",
       departments: "Organisation",

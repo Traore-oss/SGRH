@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 const API_BASE = "http://localhost:8000/api/recrutement";
 
-// === Types ===
 interface Candidat {
   prenom: string;
   nom: string;
@@ -13,26 +12,24 @@ interface Candidat {
   statutCandidature?: "En attente" | "Retenu" | "Rejeté";
 }
 
+interface Department {
+  _id?: string;
+  nom: string;
+}
+
 interface Offre {
   _id: string;
   poste: string;
   description: string;
-  departement?: string | { _id?: string; nom: string; code_departement: string };
+  departement?: Department | string;
   statut: "Ouvert" | "En cours" | "Clôturé";
-  datePublication: string;
   candidats: Candidat[];
-}
-
-interface Department {
-  _id?: string;
-  nom: string;
-  code_departement: string;
 }
 
 const Recrutement = () => {
   const [offres, setOffres] = useState<Offre[]>([]);
   const [departementsList, setDepartementsList] = useState<Department[]>([]);
-  const [newOffre, setNewOffre] = useState<Omit<Offre, "_id" | "datePublication" | "candidats">>({
+  const [newOffre, setNewOffre] = useState<Omit<Offre, "_id" | "candidats">>({
     poste: "",
     description: "",
     departement: "",
@@ -42,26 +39,21 @@ const Recrutement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // === Charger les offres ===
+  // Charger les offres
   const fetchOffres = useCallback(async () => {
     try {
       setLoading(true);
       const res = await axios.get(API_BASE, { withCredentials: true });
       setOffres(res.data);
-      setError("");
     } catch (err: any) {
-      console.error("AxiosError:", err);
-      setError(
-        err.response?.status === 401
-          ? "Vous n'êtes pas autorisé à voir ces offres. Veuillez vous connecter."
-          : "Erreur lors du chargement des offres"
-      );
+      console.error(err);
+      setError("Erreur lors du chargement des offres");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // === Charger la liste des départements ===
+  // Charger départements
   const fetchDepartements = async () => {
     try {
       const res = await fetch("http://localhost:8000/api/departements/getAllDepartements", {
@@ -79,30 +71,26 @@ const Recrutement = () => {
     fetchDepartements();
   }, [fetchOffres]);
 
-  // === CRUD Offres ===
-const handleCreateOffre = async () => {
-  try {
-    if (!newOffre.departement) {
-      setError("Veuillez sélectionner un département");
-      return;
+  // Création / mise à jour offre
+  const handleCreateOffre = async () => {
+    try {
+      if (!newOffre.departement) {
+        setError("Veuillez sélectionner un département");
+        return;
+      }
+      const payload = {
+        ...newOffre,
+        departement: typeof newOffre.departement === "object" ? newOffre.departement._id : newOffre.departement,
+      };
+      const res = await axios.post(API_BASE, payload, { withCredentials: true });
+      setOffres([...offres, res.data.offre]);
+      setNewOffre({ poste: "", description: "", departement: "", statut: "Ouvert" });
+      setError("");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "Erreur lors de la création de l'offre");
     }
-
-    // Si departement est un objet, on envoie uniquement son _id
-    const payload = {
-      ...newOffre,
-      departement: typeof newOffre.departement === "object" ? newOffre.departement._id : newOffre.departement
-    };
-
-    const res = await axios.post(API_BASE, payload, { withCredentials: true });
-    setOffres([...offres, res.data.offre]);
-    setNewOffre({ poste: "", description: "", departement: "", statut: "Ouvert" });
-    setError("");
-  } catch (err: any) {
-    console.error("AxiosError:", err);
-    setError(err.response?.data?.message || "Erreur lors de la création de l'offre");
-  }
-};
-
+  };
 
   const handleUpdateOffre = async () => {
     if (!editingOffre) return;
@@ -129,16 +117,7 @@ const handleCreateOffre = async () => {
   const startEditing = (offre: Offre) => setEditingOffre({ ...offre });
   const cancelEditing = () => setEditingOffre(null);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des offres...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <p>Chargement des offres...</p>;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -146,7 +125,7 @@ const handleCreateOffre = async () => {
 
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
 
-      {/* === Formulaire Création / Edition Offre === */}
+      {/* Formulaire création / édition */}
       <div className="bg-white p-4 rounded shadow space-y-4">
         <h2 className="text-xl font-semibold text-gray-700">{editingOffre ? "Modifier Offre" : "Nouvelle Offre"}</h2>
         <input
@@ -155,9 +134,7 @@ const handleCreateOffre = async () => {
           className="w-full border p-2 rounded"
           value={editingOffre ? editingOffre.poste : newOffre.poste}
           onChange={e =>
-            editingOffre
-              ? setEditingOffre({ ...editingOffre, poste: e.target.value })
-              : setNewOffre({ ...newOffre, poste: e.target.value })
+            editingOffre ? setEditingOffre({ ...editingOffre, poste: e.target.value }) : setNewOffre({ ...newOffre, poste: e.target.value })
           }
         />
         <input
@@ -171,34 +148,29 @@ const handleCreateOffre = async () => {
               : setNewOffre({ ...newOffre, description: e.target.value })
           }
         />
-
-        {/* Liste déroulante des départements */}
-      <select
-        name="departement"
-        className={`w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:border-transparent ${
-          (editingOffre ? editingOffre.departement : newOffre.departement) === "" ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
-        }`}
-        value={editingOffre ? editingOffre.departement : newOffre.departement}
-        onChange={e =>
-          editingOffre
-            ? setEditingOffre({ ...editingOffre, departement: e.target.value })
-            : setNewOffre({ ...newOffre, departement: e.target.value })
-        }
-      >
-        <option value="">Sélectionner un département</option>
-        {departementsList.map(d => (
-          <option key={d._id} value={d._id}>
-            {d.nom} ({d.code_departement})
-          </option>
-        ))}
-      </select>
-
+        <select
+          className="w-full border p-2 rounded"
+          value={editingOffre ? (typeof editingOffre.departement === "string" ? editingOffre.departement : editingOffre.departement?._id || "") : newOffre.departement || ""}
+          onChange={e => {
+            const selected = departementsList.find(d => d._id === e.target.value);
+            if (editingOffre && selected) setEditingOffre({ ...editingOffre, departement: selected });
+            else if (selected) setNewOffre({ ...newOffre, departement: selected });
+          }}
+        >
+          <option value="">-- Sélectionnez un département --</option>
+          {departementsList.map(d => (
+            <option key={d._id} value={d._id}>
+              {d.nom}
+            </option>
+          ))}
+        </select>
         <select
           className="w-full border p-2 rounded"
           value={editingOffre ? editingOffre.statut : newOffre.statut}
           onChange={e =>
             editingOffre
               ? setEditingOffre({ ...editingOffre, statut: e.target.value as any })
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               : setNewOffre({ ...newOffre, statut: e.target.value as any })
           }
         >
@@ -206,7 +178,6 @@ const handleCreateOffre = async () => {
           <option value="En cours">En cours</option>
           <option value="Clôturé">Clôturé</option>
         </select>
-
         <div className="flex gap-2">
           {editingOffre ? (
             <>
@@ -225,49 +196,59 @@ const handleCreateOffre = async () => {
         </div>
       </div>
 
-      {/* === Liste des Offres === */}
-      <div className="space-y-4">
-        {offres.map(offre => (
-          <div key={offre._id} className="bg-white p-4 rounded shadow space-y-2">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">{offre.poste}</h3>
-              <div className="flex gap-2">
+      {/* Tableau des offres */}
+      <table className="min-w-full border border-gray-300 bg-white rounded shadow">
+        <thead className="bg-gray-200">
+          <tr>
+            <th className="border px-4 py-2">Poste</th>
+            <th className="border px-4 py-2">Département</th>
+            <th className="border px-4 py-2">Statut</th>
+            <th className="border px-4 py-2">Lien Candidature</th>
+            <th className="border px-4 py-2">Candidats</th>
+            <th className="border px-4 py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {offres.map(offre => (
+            <tr key={offre._id} className="hover:bg-gray-50">
+              <td className="border px-4 py-2">{offre.poste}</td>
+              <td className="border px-4 py-2">{typeof offre.departement === "string" ? offre.departement : offre.departement?.nom || "-"}</td>
+              <td className="border px-4 py-2">{offre.statut}</td>
+              <td className="border px-4 py-2">
+                <a
+                  href={`http://localhost:3000/candidature/${offre._id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline"
+                >
+                  Candidature
+                </a>
+              </td>
+              <td className="border px-4 py-2">
+                {offre.candidats.length > 0 ? (
+                  <ul className="list-disc pl-5">
+                    {offre.candidats.map((c, idx) => (
+                      <li key={idx}>
+                        {c.prenom} {c.nom} - {c.statutCandidature || "En attente"}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  "Aucun candidat"
+                )}
+              </td>
+              <td className="border px-4 py-2 space-x-2">
                 <button className="bg-yellow-500 text-white px-2 py-1 rounded" onClick={() => startEditing(offre)}>
                   Modifier
                 </button>
                 <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteOffre(offre._id)}>
                   Supprimer
                 </button>
-              </div>
-            </div>
-            <p className="text-gray-600">{offre.description}</p>
-            <p className="text-sm text-gray-500">
-              Département: {typeof offre.departement === "string" ? offre.departement : offre.departement?.nom || "-"}
-            </p>
-            <p className="text-sm text-gray-500">Statut: {offre.statut}</p>
-
-            {/* Lien candidature */}
-            <p className="text-sm text-blue-600 underline cursor-pointer">
-              Lien candidature : {`http://localhost:3000/candidature/${offre._id}`}
-            </p>
-
-            {/* Liste des candidats */}
-            {offre.candidats.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <h4 className="font-semibold text-gray-700">Candidats :</h4>
-                {offre.candidats.map((c, idx) => (
-                  <div key={idx} className="flex justify-between border-b py-1">
-                    <span>
-                      {c.prenom} {c.nom}
-                    </span>
-                    <span className="text-sm text-gray-500">{c.statutCandidature || "En attente"}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

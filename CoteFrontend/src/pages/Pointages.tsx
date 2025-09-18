@@ -442,109 +442,104 @@ const AttendanceManager: React.FC = () => {
       </div>
 
       {/* Tableau des présences */}
-     <div className="overflow-x-auto bg-white rounded-xl shadow-md p-5 transition-all duration-300">
-  <h3 className="text-lg font-semibold text-gray-800 mb-4">Liste des employés</h3>
-  <table className="min-w-full border-collapse">
-    <thead>
-      <tr className="bg-gray-100 rounded-lg">
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">
-          Matricule
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Nom
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Prénom
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Statut
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Heure arrivée
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Heure départ
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">
-          Action
-        </th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-gray-200">
-      {filteredAttendance.map((record, index) => (
-        <tr
-          key={record.employe._id + record.date}
-          className="hover:bg-blue-50 transition-colors duration-200"
-          style={{ animationDelay: `${index * 0.05}s` }}
-        >
-          <td className="p-3 text-sm text-gray-700">{record.employe.matricule}</td>
-          <td className="p-3 text-sm font-medium text-gray-900">{record.employe.nom}</td>
-          <td className="p-3 text-sm text-gray-700">{record.employe.prenom}</td>
-          <td className="p-3 text-sm">
-            <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                record.statut === "Présent"
-                  ? "bg-green-100 text-green-800"
-                  : record.statut === "Retard"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-red-100 text-red-800"
-              }`}
-            >
-              {record.statut}
-            </span>
-          </td>
-          <td className="p-3 text-sm text-gray-700">{record.heureArrivee || "-"}</td>
-          <td className="p-3 text-sm text-gray-700">{record.heureDepart || "-"}</td>
-          <td className="p-3 text-sm">
-            <div className="flex items-center space-x-3">
-              {/* Checkbox pour marquer la présence */}
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={record.statut !== "Absent"}
-                  onChange={(e) => togglePresence(record, e.target.checked)}
-                  disabled={record.statut === "Retard"} // facultatif si on veut bloquer certaines cases
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-
-              {/* Bouton Départ */}
-              <button
-                onClick={() => handleSetDeparture(record)}
-                disabled={record.statut === "Absent"}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${
-                  record.statut === "Absent"
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
-                }`}
+      <div className="overflow-x-auto bg-white rounded-xl shadow-md p-5 transition-all duration-300">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Liste des employés</h3>
+        <table className="min-w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100 rounded-lg">
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">
+                Matricule
+              </th>
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Nom
+              </th>
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Prénom
+              </th>
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Statut
+              </th>
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Heure arrivée
+              </th>
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Heure départ
+              </th>
+              <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredAttendance.map((record, index) => (
+              <tr
+                key={record.employe._id + record.date}
+                className="hover:bg-blue-50 transition-colors duration-200"
+                style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                <td className="p-3 text-sm text-gray-700">{record.employe.matricule}</td>
+                <td className="p-3 text-sm font-medium text-gray-900">{record.employe.nom}</td>
+                <td className="p-3 text-sm text-gray-700">{record.employe.prenom}</td>
+                <td className="p-3 text-sm">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      record.statut === "Présent"
+                        ? "bg-green-100 text-green-800"
+                        : record.statut === "Retard"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  Départ
-                </div>
-              </button>
-            </div>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-
+                    {record.statut}
+                  </span>
+                </td>
+                <td className="p-3 text-sm text-gray-700">{record.heureArrivee}</td>
+                <td className="p-3 text-sm text-gray-700">{record.heureDepart}</td>
+                <td className="p-3 text-sm">
+                  <div className="flex items-center space-x-3">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={record.statut !== "Absent"}
+                        onChange={e => togglePresence(record, e.target.checked)}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                    <button
+                      onClick={() => handleSetDeparture(record)}
+                      disabled={record.statut === "Absent"}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${
+                        record.statut === "Absent"
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 mr-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                        Départ
+                      </div>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Notification */}
       {notification && (

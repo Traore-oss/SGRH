@@ -2,10 +2,10 @@ const Attendance = require('../Models/pointageModel');
 const User = require('../Models/usersModel');
 const mongoose = require("mongoose");
 
-// Helper pour récupérer le bon matricule
+// Helper pour récupérer le matricule
 const getMatricule = (user) => user?.matricule || user?.employer?.matricule || "-";
 
-// 📌 Récupérer les présences
+// 📌 Récupérer les présences selon le rôle
 exports.getAttendances = async (req, res) => {
   try {
     if (!req.user?._id) return res.status(401).json({ message: "Utilisateur non authentifié" });
@@ -51,10 +51,7 @@ exports.getAttendances = async (req, res) => {
           };
         }
 
-        return {
-          ...att.toObject(),
-          matricule: getMatricule(att.employe)
-        };
+        return { ...att.toObject(), matricule: getMatricule(att.employe) };
       })
     );
 
@@ -69,32 +66,23 @@ exports.getAttendances = async (req, res) => {
 // 📌 Pointer arrivée
 exports.updatePresence = async (req, res) => {
   try {
-    const { employeId, id, date, checked } = req.body;
-    const targetId = employeId || id;
+    const { employeId, date, checked } = req.body;
+    if (!employeId || !date) return res.status(400).json({ message: "Données manquantes" });
+    if (!mongoose.Types.ObjectId.isValid(employeId)) return res.status(400).json({ message: "ID employé invalide" });
 
-    if (!targetId || !date) return res.status(400).json({ message: "Données manquantes" });
-    if (!mongoose.Types.ObjectId.isValid(targetId)) return res.status(400).json({ message: "ID employé invalide" });
-
-    // ✅ Charger avec createdByrh
-    const employe = await User.findById(targetId).select("nom prenom matricule employer.createdByrh employer.matricule");
+    const employe = await User.findById(employeId);
     if (!employe) return res.status(404).json({ message: "Employé introuvable" });
 
-    // 🔒 Vérification stricte des droits
+    // Vérification des droits
     if (req.user.role !== "Admin") {
-      if (req.user.role === "RH") {
-        if (!employe.employer?.createdByrh || employe.employer.createdByrh.toString() !== req.user._id.toString()) {
-          return res.status(403).json({ message: "Vous n’êtes pas autorisé à pointer cet employé." });
-        }
-      }
-      if (req.user.role === "Employe" && req.user._id.toString() !== targetId.toString()) {
+      if (req.user.role === "RH" && !employe.employer?.createdByrh.equals(req.user._id))
+        return res.status(403).json({ message: "Vous ne pouvez pas pointer cet employé" });
+      if (req.user.role === "Employe" && !req.user._id.equals(employeId))
         return res.status(403).json({ message: "Non autorisé" });
-      }
     }
 
     const now = new Date();
-    let statut = "Absent";
-    let heureArrivee = "-";
-    let retard = "-";
+    let statut = "Absent", heureArrivee = "-", retard = "-";
 
     if (checked) {
       heureArrivee = now.toTimeString().slice(0, 8);
@@ -109,22 +97,16 @@ exports.updatePresence = async (req, res) => {
       }
     }
 
-    const filter = { employe: employe._id, date };
-    const update = { statut, heureArrivee, retard };
-
     const record = await Attendance.findOneAndUpdate(
-      filter,
-      update,
+      { employe: employe._id, date },
+      { statut, heureArrivee, retard },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     ).populate("employe", "nom prenom matricule employer");
 
-    const matricule = getMatricule(employe);
-    res.json({ ...record.toObject(), matricule });
+    res.json({ ...record.toObject(), matricule: getMatricule(record.employe) });
 
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Pointage déjà enregistré pour cet employé à cette date." });
-    }
+    if (err.code === 11000) return res.status(400).json({ message: "Pointage déjà enregistré pour cet employé." });
     res.status(500).json({ message: err.message });
   }
 };
@@ -132,31 +114,21 @@ exports.updatePresence = async (req, res) => {
 // 📌 Pointer départ
 exports.setDeparture = async (req, res) => {
   try {
-    const { employeId, id, date } = req.body;
-    const targetId = employeId || id;
+    const { employeId, date } = req.body;
+    if (!employeId || !mongoose.Types.ObjectId.isValid(employeId)) return res.status(400).json({ message: "ID employé invalide" });
 
-    if (!targetId || !mongoose.Types.ObjectId.isValid(targetId)) {
-      return res.status(400).json({ message: "ID employé invalide" });
-    }
-
-    // ✅ Charger avec createdByrh
-    const employe = await User.findById(targetId).select("nom prenom matricule employer.createdByrh employer.matricule");
+    const employe = await User.findById(employeId);
     if (!employe) return res.status(404).json({ message: "Employé non trouvé" });
 
-    // 🔒 Vérification stricte des droits
     if (req.user.role !== "Admin") {
-      if (req.user.role === "RH") {
-        if (!employe.employer?.createdByrh || employe.employer.createdByrh.toString() !== req.user._id.toString()) {
-          return res.status(403).json({ message: "Vous n’êtes pas autorisé à pointer cet employé." });
-        }
-      }
-      if (req.user.role === "Employe" && req.user._id.toString() !== targetId.toString()) {
+      if (req.user.role === "RH" && !employe.employer?.createdByrh.equals(req.user._id))
+        return res.status(403).json({ message: "Vous ne pouvez pas pointer cet employé" });
+      if (req.user.role === "Employe" && !req.user._id.equals(employeId))
         return res.status(403).json({ message: "Non autorisé" });
-      }
     }
 
-    let record = await Attendance.findOne({ employe: targetId, date });
-    if (!record) record = new Attendance({ employe: targetId, date });
+    let record = await Attendance.findOne({ employe: employeId, date });
+    if (!record) record = new Attendance({ employe: employeId, date });
 
     const now = new Date();
     record.heureDepart = now.toTimeString().slice(0, 8);
@@ -181,13 +153,11 @@ exports.setDeparture = async (req, res) => {
   }
 };
 
-// 📌 Pointer plusieurs présences (bulk)
+// 📌 Bulk update des présences
 exports.updatePresenceBulk = async (req, res) => {
   try {
     const { attendances } = req.body; // [{ employeId, date, checked }]
-    if (!attendances || !Array.isArray(attendances)) {
-      return res.status(400).json({ message: "Aucune donnée reçue" });
-    }
+    if (!attendances || !Array.isArray(attendances)) return res.status(400).json({ message: "Aucune donnée reçue" });
 
     const results = [];
 
@@ -195,28 +165,20 @@ exports.updatePresenceBulk = async (req, res) => {
       const { employeId, date, checked } = item;
       if (!employeId || !date) continue;
 
-      // ✅ Charger avec createdByrh
-      const employe = await User.findById(employeId).select("nom prenom matricule employer.createdByrh employer.matricule");
+      const employe = await User.findById(employeId);
       if (!employe) continue;
 
-      // 🔒 Vérification stricte des droits
       if (req.user.role !== "Admin") {
-        if (req.user.role === "RH") {
-          if (!employe.employer?.createdByrh || employe.employer.createdByrh.toString() !== req.user._id.toString()) continue;
-        }
-        if (req.user.role === "Employe" && req.user._id.toString() !== employeId.toString()) continue;
+        if (req.user.role === "RH" && !employe.employer?.createdByrh.equals(req.user._id)) continue;
+        if (req.user.role === "Employe" && !req.user._id.equals(employeId)) continue;
       }
 
-      let statut = "Absent";
-      let heureArrivee = "-";
-      let retard = "-";
-
+      let statut = "Absent", heureArrivee = "-", retard = "-";
       if (checked) {
         const now = new Date();
         heureArrivee = now.toTimeString().slice(0, 8);
         const limite = new Date(`${date}T08:00:00`);
         const diffSec = Math.floor((now - limite) / 1000);
-
         if (diffSec > 0) {
           statut = "Retard";
           const totalMinutes = Math.floor(diffSec / 60);
@@ -226,16 +188,13 @@ exports.updatePresenceBulk = async (req, res) => {
         }
       }
 
-      const filter = { employe: employe._id, date };
-      const update = { statut, heureArrivee, retard };
-
       const record = await Attendance.findOneAndUpdate(
-        filter,
-        update,
+        { employe: employe._id, date },
+        { statut, heureArrivee, retard },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       ).populate("employe", "nom prenom matricule employer");
 
-      results.push({ ...record.toObject(), matricule: getMatricule(employe) });
+      results.push({ ...record.toObject(), matricule: getMatricule(record.employe) });
     }
 
     res.json(results);

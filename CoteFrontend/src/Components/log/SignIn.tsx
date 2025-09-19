@@ -48,7 +48,7 @@ const SignIn: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-sm w-full">
         <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-           <div className="bg-blue-600 py-4 px-20 text-center">
+           <div className="bg-blue-600 py-2 px-10 text-center">
             <img src="../../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" alt="Logo SGRH" className="mx-auto mb-1" />
             <h2 className="text-lg font-semibold text-white">Connexion SGRH</h2>
           </div>

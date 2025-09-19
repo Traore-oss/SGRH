@@ -104,13 +104,14 @@ import { LoadingSpinner } from "../LoadingSpinner";
 
 import { AdminDashboard } from "../../roleDashboard/AdminDashboard";
 import { HRDashboard } from "../../roleDashboard/RhDashboard";
-import { EmployeeDashboard } from "../../roleDashboard/EmployerDashboard";
+// import { EmployeeDashboard } from "../../roleDashboard/EmployerDashboard";
 
 import SignIn from "../log/SignIn";
 import ForgotPassword from "../log/ForgotPassword";
 import ResetPassword from "../log/ResetPassword";
 import HomePage from "../../pages/Acceuil";
 import CandidatureForm from "../../pages/Candidature";
+import EmployerDashboard from "../../roleDashboard/EmployerDashboard";
 
 // Route protégée par rôle
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string[] }> = ({ children, allowedRoles }) => {
@@ -155,7 +156,7 @@ const AppRoutes: React.FC = () => {
         path="/employee-dashboard"
         element={
           <ProtectedRoute allowedRoles={["Employe"]}>
-            <EmployeeDashboard />
+            <EmployerDashboard />
           </ProtectedRoute>
         }
       />

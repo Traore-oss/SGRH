@@ -2,7 +2,7 @@
 import axios from "axios";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Plus, Eye, Edit, Lock, Filter, ChevronDown, Search, Users, Building2, FileText, Calendar, Clock, Menu, LogOut, Bell, Heart, UserPlus } from "lucide-react";
+import { User, Plus, Eye, Edit, Lock, Filter, ChevronDown, Search, Users, Building2, FileText, Calendar, Clock, Menu, LogOut, Bell, Heart, UserPlus, TrendingUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
@@ -180,14 +180,14 @@ type HRView =
 
 const hrMenuItems = [
   { id: "dashboard", label: "Tableau de Bord", icon: Heart },
-  { id: "users", label: "Utilisateurs", icon: Users },
-  { id: "Recrutement", label: "Recrutement", icon: UserPlus },
-  { id: "CongesManager", label: "Congés", icon: Calendar },
-  { id: "attendance", label: "Présences", icon: Clock },
-  { id: "performance", label: "Performances", icon: FileText },
-  { id: "departments", label: "Départements", icon: Building2 },
-  { id: "formation", label: "Suivi des Formations", icon: FileText },
-  { id: "reports", label: "Rapports RH", icon: FileText },
+  { id: "users", label: "Gestion Utilisateurs", icon: Users },
+  { id: 'CongesManager', label: 'Gestion des Congés', icon: Calendar },
+  { id: "attendance", label: "Gestion Présences", icon: Clock },
+  { id: "departments", label: "Gestion Départements", icon: Building2 },
+   { id: "Recrutement", label: " Gestion des Recurtements", icon: UserPlus },
+  { id: "performance", label: "Gestion Performances", icon: TrendingUp },
+  { id: "formation", label: "Gestion des Formations", icon: FileText },
+  // { id: "reports", label: "Rapports RH", icon: FileText },
 ];
 
 // Composant Dashboard
@@ -625,7 +625,7 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employé</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Poste</th>
+                  {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Poste</th> */}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Département</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Salaire</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
@@ -664,9 +664,9 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                       <div className="text-sm text-gray-900">{u.email || '-'}</div>
                       <div className="text-sm text-gray-500">{u.telephone || '-'}</div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
+                    {/* <td className="px-4 py-3 hidden md:table-cell">
                       <div className="text-sm text-gray-900">{u.poste || '-'}</div>
-                    </td>
+                    </td> */}
                     <td className="px-4 py-3 hidden xl:table-cell">
                       <div className="text-sm text-gray-900">{u.departement?.nom || '-'}</div>
                     </td>
@@ -906,10 +906,10 @@ export const HRDashboard: React.FC = () => {
     const titles = {
       dashboard: "Tableau de Bord RH",
       users: "Gestion des Employés",
-      Recrutement: "Gestion du Recrutement",
+      Recrutement: "Gestion des Recurtements",
       CongesManager: "Validation des Congés",
-      attendance: "Suivi des Présences",
-      departments: "Organisation",
+      attendance: "Gestion  des Pointages",
+      departments: "Gestion des Departements",
       reports: "Rapports RH",
       performance: "Performances",
       formation: "Suivi des Formations"

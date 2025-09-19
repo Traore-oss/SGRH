@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  Users, Building2, FileText, Settings, Calendar,
+  Users, Building2,  Calendar,
   Clock, Menu, LogOut, Edit, Eye, Filter, Search, X, Plus, User, Bell, ChevronDown, Lock,
-  Home, BookOpen, DollarSign, TrendingUp
+  Home, BookOpen,  TrendingUp
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -230,15 +230,15 @@ const calculateSeniority = (hireDate: string) => {
 // ==================== Menu amélioré avec icônes ====================
 const adminMenuItems = [
   { id: 'dashboard', label: 'Tableau de Bord', icon: Home },
-  { id: 'departments', label: 'Départements', icon: Building2 },
+  { id: 'users', label: 'Utilisateurs', icon: Users },
   { id: 'CongesManager', label: 'Gestion des Congés', icon: Calendar },
   { id: 'attendance', label: 'Présences', icon: Clock },
+  { id: 'departments', label: 'Départements', icon: Building2 },
   { id: 'Performance', label: 'Performance', icon: TrendingUp },
   { id: 'SuiviFormations', label: 'Formations', icon: BookOpen },
-  { id: 'reports', label: 'Rapports', icon: FileText },
-  { id: 'Salaire', label: 'Salaires', icon: DollarSign },
-  { id: 'users', label: 'Utilisateurs', icon: Users },
-  { id: 'settings', label: 'Paramètres', icon: Settings },
+  // { id: 'reports', label: 'Rapports', icon: FileText },
+  // { id: 'Salaire', label: 'Salaires', icon: DollarSign },
+  // { id: 'settings', label: 'Paramètres', icon: Settings },
 ];
 
 // ==================== UserManagement amélioré ====================
@@ -253,9 +253,6 @@ export const UserManagement: React.FC = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
   const fetchEmployees = async () => {
     setLoading(true);
     try {

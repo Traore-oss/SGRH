@@ -1,26 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
-
 import { 
-  Calendar, 
-  Clock, 
-  FileText, 
-  Target,
-  Award,
-  Menu,
-  LogOut,
-  Briefcase,
-  ChevronDown,
-  Bell,
   X,
   PieChart
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getDemandesConge } from "../Components/CongesService";
-import { getAttendancesByDate, type AttendanceRecord } from "../Components/PointageServices";
+import { getAttendancesByDate} from "../Components/PointageServices";
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -51,17 +39,52 @@ interface DemandeConge {
   dateSoumission: string;
   dateValidation?: string;
 }
+import React, { useState, useEffect } from 'react';
+import {  useNavigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import { 
+  Menu, 
+  LogOut, 
+  Bell, 
+  ChevronDown,
+  Calendar,
+  Clock,
+  TrendingUp,
+  FileText,
+  Target
+} from 'lucide-react';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, RadialLinearScale, Title, Tooltip, Legend } from 'chart.js';
+import { Doughnut, Bar, Radar } from 'react-chartjs-2';
+import { useAuth } from "../context/AuthContext";
+import { getEmployeeStats, type EmployeeStats } from "../Components/ServiceEmployer";
 
+// Enregistrer les composants de Chart.js
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  Title,
+  Tooltip,
+  Legend
+);
+
+// Types
 type EmployeeView = 'dashboard' | 'profile' | 'leaves' | 'attendance' | 'goals' | 'payslips';
 
+// Menu items
 const employeeMenuItems = [
-  { id: 'dashboard', label: 'Mon Tableau de Bord', icon: Briefcase },
+  { id: 'dashboard', label: 'Tableau de bord', icon: TrendingUp },
   { id: 'leaves', label: 'Mes Congés', icon: Calendar },
   { id: 'attendance', label: 'Mes Présences', icon: Clock },
   { id: 'goals', label: 'Mes Objectifs', icon: Target },
-  { id: 'payslips', label: 'Bulletins de Paie', icon: FileText },
+  { id: 'payslips', label: 'Mes Bulletins', icon: FileText },
 ];
 
+// Composant pour le tableau de bord employé
 export const EmployeeDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -70,7 +93,7 @@ export const EmployeeDashboard: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
+const [stats, setStats] = useState<EmployeeStats | null>(null);
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -95,11 +118,326 @@ export const EmployeeDashboard: React.FC = () => {
       setShowUserDropdown(false);
     }
   };
+    
+ useEffect(() => {
+    // Vérifier que l'utilisateur existe
+    if (!user?._id) return;
+
+    const fetchStats = async () => {
+      try {
+        // console.log("Fetching stats pour user:", user.id);
+        const data = await getEmployeeStats(user?._id);
+        console.log("stats reçues du backend:", data);
+        setStats(data);
+      } catch (err) {
+        console.error("Erreur stats:", err);
+      }
+    };
+
+    fetchStats();
+  }, [user?._id]); 
+
+
+
+  // Configuration des graphiques
+  const leaveChartData = {
+    labels: ['Approuvé', 'Refusé', 'En attente'],
+    datasets: [
+      {
+        data: [stats?.leaves.approved, stats?.leaves.rejected, stats?.leaves.pending],
+        backgroundColor: ['#2ecc71', '#e74c3c', '#f39c12'],
+        borderWidth: 0,
+        borderRadius: 5,
+        hoverOffset: 10
+      }
+    ]
+  };
+
+  const leaveChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          padding: 15,
+          usePointStyle: true,
+          pointStyle: 'circle'
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            return `${context.label}: ${context.raw} congés`;
+          }
+        }
+      }
+    },
+    cutout: '70%'
+  };
+
+  const attendanceChartData = {
+    labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
+    datasets: [
+      {
+        label: 'Présence %',
+        data: [90, 88, 92, 85, 80, 70],
+        backgroundColor: '#2ecc71',
+        stack: 'Stack 0'
+      },
+      {
+        label: 'Absence %',
+        data: [5, 7, 3, 10, 15, 20],
+        backgroundColor: '#e74c3c',
+        stack: 'Stack 0'
+      },
+      {
+        label: 'Retard %',
+        data: [5, 5, 5, 5, 5, 10],
+        backgroundColor: '#f39c12',
+        stack: 'Stack 0'
+      }
+    ]
+  };
+
+  const attendanceChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          padding: 15,
+          usePointStyle: true,
+          pointStyle: 'rect'
+        }
+      },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false
+      }
+    },
+    scales: {
+      x: {
+        stacked: true,
+        grid: {
+          display: false
+        }
+      },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          callback: function(value: any) {
+            return value + '%';
+          }
+        }
+      }
+    }
+  };
+
+  const performanceChartData = {
+    labels: ['Ponctualité', 'Efficacité', 'Productivité', 'Engagement'],
+    datasets: [
+      {
+        label: 'Performance',
+        data: [
+          stats?.performance.ponctuality, 
+          stats?.performance.efficiency, 
+          stats?.performance.productivity, 
+          stats?.performance.engagement
+        ],
+        backgroundColor: 'rgba(52, 152, 219, 0.2)',
+        borderColor: '#3498db',
+        pointBackgroundColor: ['#3498db', '#9b59b6', '#2ecc71', '#f1c40f'],
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#3498db',
+        pointRadius: 5,
+        pointHoverRadius: 7
+      }
+    ]
+  };
+
+  const performanceChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      r: {
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          stepSize: 20,
+          display: false
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)'
+        },
+        angleLines: {
+          color: 'rgba(0, 0, 0, 0.1)'
+        },
+        pointLabels: {
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      }
+    },
+    elements: {
+      line: {
+        borderWidth: 3
+      }
+    }
+  };
+
+  // Vue personnalisée pour le tableau de bord
+  const DashboardView = () => (
+    <div className="space-y-6">
+      {/* Cartes statistiques en haut */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Carte Congés Totaux */}
+        <div className="bg-white rounded-xl shadow-md p-6 transition-transform hover:-translate-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Congés Totaux</h3>
+              <p className="text-sm text-gray-500">Cette année</p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-full">
+              <Calendar className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-blue-600">{stats?.leaves.total}</div>
+            <div className="flex items-center mt-2">
+              <div className="text-sm text-green-500 font-medium">
+                +5% vs année dernière
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Carte Taux de Présence */}
+        <div className="bg-white rounded-xl shadow-md p-6 transition-transform hover:-translate-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Taux de Présence</h3>
+              <p className="text-sm text-gray-500">Ce mois-ci</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <Clock className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-green-600">{stats?.attendance.presence}%</div>
+            <div className="flex items-center mt-2">
+              <div className="text-sm text-green-500 font-medium">
+                +2% vs mois dernier
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Carte Performance */}
+        <div className="bg-white rounded-xl shadow-md p-6 transition-transform hover:-translate-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Performance</h3>
+              <p className="text-sm text-gray-500">Score global</p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-full">
+              <TrendingUp className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-purple-600">{stats?.performance.global}%</div>
+            <div className="flex items-center mt-2">
+              <div className="text-sm text-green-500 font-medium">
+                Excellent travail!
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Graphiques détaillés */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Carte Congé */}
+        <div className="bg-white rounded-xl shadow-md p-6 transition-transform hover:-translate-y-1">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Calendar className="h-5 w-5" /> Détail des Congés
+          </h2>
+          <div className="h-64">
+            <Doughnut data={leaveChartData} options={leaveChartOptions} />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-blue-500">{stats?.leaves.total}</div>
+              <div className="text-xs text-gray-500">Total Congés</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-green-500">{stats?.leaves.approved}</div>
+              <div className="text-xs text-gray-500">Approuvé</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-red-500">{stats?.leaves.rejected}</div>
+              <div className="text-xs text-gray-500">Refusé</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-yellow-500">{stats?.leaves.pending}</div>
+              <div className="text-xs text-gray-500">En attente</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Carte Pointage */}
+        <div className="bg-white rounded-xl shadow-md p-6 transition-transform hover:-translate-y-1">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5" /> Détail du Pointage
+          </h2>
+          <div className="h-64">
+            <Bar data={attendanceChartData} options={attendanceChartOptions} />
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-green-500">{stats?.attendance.presence}%</div>
+              <div className="text-xs text-gray-500">Présence</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-red-500">{stats?.attendance.absence}%</div>
+              <div className="text-xs text-gray-500">Absence</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-yellow-500">{stats?.attendance.delay}%</div>
+              <div className="text-xs text-gray-500">Retard</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Carte Performance */}
+        <div className="bg-white rounded-xl shadow-md p-6 transition-transform hover:-translate-y-1">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" /> Détail de la Performance
+          </h2>
+          <div className="h-64">
+            <Radar data={performanceChartData} options={performanceChartOptions} />
+          </div>
+          <div className="text-center mt-4">
+            <div className="text-4xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+              {stats?.performance.global}%
+            </div>
+            <div className="text-sm text-gray-500">Score Global</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <EmployeeOverview />;
+        return <DashboardView />;
       case 'profile':
         return <EmployeeProfile />;
       case 'leaves':
@@ -233,7 +571,7 @@ export const EmployeeDashboard: React.FC = () => {
   );
 };
 
-// Composants internes
+
 const EmployeeOverview: React.FC = () => {
   const { user } = useAuth();
   const [conges, setConges] = useState<DemandeConge[]>([]);
@@ -738,85 +1076,113 @@ const EmployeeLeaves: React.FC = () => {
 interface EmployeeAttendanceProps {
   days?: number;
 }
+// Types adaptés au front
+export interface AttendanceRecord {
+  employe: any; // ou un type `User` si tu en as un
+  date: string;
+  statut: "Présent" | "Absent";
+  heureArrivee: string;
+  heureDepart: string;
+  heuresTravaillees: string;
+  retard: string;
+}
 
-const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => {
+export interface AttendanceApiResponse {
+  attendance?: {
+    presence: number;
+    delay?: number;
+    heureArrivee?: string;
+    heureDepart?: string;
+  };
+}
+
+
+
+export const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => {
   const { user } = useAuth();
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAttendanceHistory = useCallback(async () => {
-    if (!user?.id) {
-      setError("Utilisateur non défini");
-      setAttendanceHistory([]);
-      setLoading(false);
-      return;
+  // 📌 Charger l’historique des présences
+const fetchAttendanceHistory = useCallback(async () => {
+  if (!user?._id) {
+    setError("Utilisateur non défini");
+    setAttendanceHistory([]);
+    setLoading(false);
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const history: AttendanceRecord[] = [];
+
+    for (let i = 0; i < days; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toLocaleDateString("fr-CA");
+
+      // ✅ Appel API qui retourne AttendanceApiResponse
+      const res = await getAttendancesByDate(dateStr);
+
+      const record: AttendanceRecord = {
+        employe: user,
+        date: dateStr,
+        statut: res.attendance?.presence && res.attendance.presence > 0 ? "Présent" : "Absent",
+        heureArrivee: res.attendance?.heureArrivee || "-",
+        heureDepart: res.attendance?.heureDepart || "-",
+        heuresTravaillees: res.attendance?.presence ? `${res.attendance.presence} h` : "0h",
+        retard: res.attendance?.delay ? `${res.attendance.delay} min` : "-",
+      };
+
+      history.push(record);
     }
 
-    setLoading(true);
-    try {
-      const history: AttendanceRecord[] = [];
+    setAttendanceHistory(history);
+    setError(null);
+  } catch (err) {
+    console.error(err);
+    setError("Erreur lors du chargement des présences");
+  } finally {
+    setLoading(false);
+  }
+}, [user, days]);
 
-      for (let i = 0; i < days; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString("fr-CA");
-
-        const attendances = await getAttendancesByDate(dateStr);
-
-        const record = attendances.find(
-          (r) =>
-            r.employe &&
-            (r.employe._id?.toString() === user.id.toString() ||
-              r.employe.id?.toString() === user.id.toString())
-        );
-
-        history.push(
-          record || {
-            employe: user as unknown as Employee,
-            date: dateStr,
-            statut: "Absent",
-            heureArrivee: "-",
-            heureDepart: "-",
-            heuresTravaillees: "-",
-            retard: "-",
-          }
-        );
-      }
-
-      setAttendanceHistory(history);
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError("Erreur lors du chargement de l'historique des présences");
-    } finally {
-      setLoading(false);
-    }
-  }, [user, days]);
 
   useEffect(() => {
-    if (user?.id) fetchAttendanceHistory();
+    if (user?._id) fetchAttendanceHistory();
   }, [fetchAttendanceHistory, user]);
 
+  // 📌 Pointer arrivée
   const handleMarkArrival = async () => {
-    if (!user?.id) return;
+    if (!user?._id) return;
     try {
-      await markArrival(user.id);
+      const todayStr = new Date().toLocaleDateString("fr-CA");
+      await axios.put("/api/attendance/arrivee", {
+        employeId: user._id,
+        date: todayStr,
+        checked: true,
+      });
       toast.success("Arrivée pointée avec succès");
       fetchAttendanceHistory();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors du pointage");
+      toast.error(error.response?.data?.message || "Erreur lors du pointage d'arrivée");
     }
   };
 
+  // 📌 Pointer départ
   const handleMarkDeparture = async () => {
-    if (!user?.id) return;
+    if (!user?._id) return;
     try {
-      await markDeparture(user.id);
+      const todayStr = new Date().toLocaleDateString("fr-CA");
+      await axios.put("/api/attendance/depart", {
+        employeId: user._id,
+        date: todayStr,
+      });
       toast.success("Départ pointé avec succès");
       fetchAttendanceHistory();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors du pointage");
+      toast.error(error.response?.data?.message || "Erreur lors du pointage de départ");
     }
   };
 
@@ -826,7 +1192,7 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
 
   const todayStr = new Date().toLocaleDateString("fr-CA");
   const todayRecord = attendanceHistory.find((r) => r.date === todayStr) || {
-    employe: user as unknown as Employee,
+    employe: user,
     date: todayStr,
     statut: "Absent",
     heureArrivee: "-",
@@ -857,17 +1223,18 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Présences</h3>
 
+        {/* Boutons arrivée & départ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <button
             onClick={handleMarkArrival}
-            disabled={todayRecord.heureArrivee !== "-" && todayRecord.heureArrivee !== undefined}
+            disabled={todayRecord.heureArrivee !== "-"}
             className={`p-4 rounded-lg transition-colors flex flex-col items-center ${
               todayRecord.heureArrivee !== "-" ? "bg-gray-50 cursor-not-allowed" : "bg-green-50 hover:bg-green-100"
             }`}
           >
             <Clock className="h-8 w-8 text-green-600 mb-2" />
             <h4 className="font-medium text-gray-800">Pointer l'arrivée</h4>
-            <p className="text-sm text-gray-600">{todayRecord.heureArrivee || "Non pointé"}</p>
+            <p className="text-sm text-gray-600">{todayRecord.heureArrivee}</p>
           </button>
 
           <button
@@ -879,10 +1246,11 @@ const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => 
           >
             <Clock className="h-8 w-8 text-red-600 mb-2" />
             <h4 className="font-medium text-gray-800">Pointer le départ</h4>
-            <p className="text-sm text-gray-600">{todayRecord.heureDepart || "Non pointé"}</p>
+            <p className="text-sm text-gray-600">{todayRecord.heureDepart}</p>
           </button>
         </div>
 
+        {/* Historique */}
         <div className="space-y-3">
           {attendanceHistory.map((record) => (
             <div key={record.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -968,10 +1336,3 @@ const EmployeePayslips: React.FC = () => {
 
 export default EmployeeDashboard;
 
-function markArrival(id: string) {
-  throw new Error("Function not implemented.");
-}
-
-function markDeparture(id: string) {
-  throw new Error("Function not implemented.");
-}

@@ -5,7 +5,7 @@ import * as authService from "../service/AuthService"; // <-- ton fichier servic
 
 export interface User {
   employer: any;
-  id: string;
+  _id: string;
   nom: string;
   prenom: string;
   email: string;
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       addActivity({
         type: "auth",
         description: "Déconnexion du système",
-        userId: user.id,
+        userId: user._id,
       });
     }
     setUser(null);
@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     // Met à jour l'utilisateur courant si c'est lui-même
-    if (user?.id === updatedUser.id) {
+    if (user?._id === updatedUser.id) {
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser)); // 🔹 Mise à jour stockage
     }
@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setActivityHistory((prev) => {
       const updatedHistory = [newActivity, ...prev].slice(0, 50);
-      if (user) localStorage.setItem(`userActivities_${user.id}`, JSON.stringify(updatedHistory));
+      if (user) localStorage.setItem(`userActivities_${user._id}`, JSON.stringify(updatedHistory));
       return updatedHistory;
     });
   };

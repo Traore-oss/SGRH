@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -98,3 +99,42 @@ export const toggleEmployeeActive = async (id: string): Promise<ToggleResponse> 
   const data: ToggleResponse = await res.json();
   return data;
 };
+
+
+
+
+
+export interface EmployeeStats {
+  leaves: {
+    approved: number;
+    rejected: number;
+    pending: number;
+    total: number;
+  };
+  attendance: {
+    presence: number;
+    absence: number;
+    delay: number;
+  };
+  performance: {
+    ponctuality: number;
+    efficiency: number;
+    productivity: number;
+    engagement: number;
+    global: number;
+  };
+}
+
+// Statistiques d'un employé
+export const getEmployeeStats = async (id: string): Promise<EmployeeStats> => {
+  const res = await fetch(`${API_BASE}/api/users/stats/${id}`, {
+    credentials: "include"
+  });
+  if (!res.ok) {
+    const errData = await res.json();
+    throw new Error(errData.message || "Erreur récupération stats");
+  }
+  return await res.json();
+};
+
+

@@ -98,24 +98,29 @@ exports.updateFormation = async (req, res) => {
 };
 
 // Supprimer une formation
+// Supprimer une formation
 exports.deleteFormation = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const formation = await Formation.findById(id);
-    if (!formation) {
-      return res.status(404).json({ message: "Formation non trouvée." });
-    }
+    if (!id) return res.status(400).json({ message: "ID de formation requis." });
 
-    // Vérifier si l'utilisateur est Admin ou RH propriétaire
-    if (req.user.role !== 'Admin' && formation.rh.toString() !== req.user._id.toString()) {
+    const formation = await Formation.findById(id);
+    if (!formation) return res.status(404).json({ message: "Formation non trouvée." });
+
+    // Vérification des permissions
+    const isOwner = formation.rh?.toString() === req.user._id.toString();
+    if (req.user.role !== 'Admin' && !isOwner) {
       return res.status(403).json({ message: "Vous n'avez pas la permission." });
     }
 
-    await formation.remove();
+    // Suppression
+    await Formation.deleteOne({ _id: id });
 
     res.status(200).json({ message: "Formation supprimée" });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error });
+    console.error("Erreur serveur lors de la suppression:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+

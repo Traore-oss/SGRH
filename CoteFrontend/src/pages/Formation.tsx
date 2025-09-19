@@ -128,27 +128,61 @@ const ajouterOuModifierFormation = async () => {
 };
 
 const supprimerFormation = async (id: string) => {
-  if (!window.confirm("Voulez-vous vraiment supprimer cette formation ?")) return;
+  // Afficher une confirmation élégante
+  const confirmer = await new Promise<boolean>((resolve) => {
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-2 p-2">
+          <span>Voulez-vous vraiment supprimer cette formation ?</span>
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+              onClick={() => {
+                toast.dismiss(t.id);
+                resolve(true);
+              }}
+            >
+              Supprimer
+            </button>
+            <button
+              className="bg-gray-300 text-gray-800 px-3 py-1 rounded hover:bg-gray-400"
+              onClick={() => {
+                toast.dismiss(t.id);
+                resolve(false);
+              }}
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity, position: "top-center" }
+    );
+  });
+
+  if (!confirmer) return;
 
   try {
     const response = await fetch(`${API_BASE_URL}/deleteFormation/${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      credentials: "include", // envoie le cookie JWT automatiquement
+      credentials: "include",
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "Erreur lors de la suppression");
+      throw new Error(data.message || "Erreur lors de la suppression");
     }
 
     await chargerFormations();
-    toast.info("Formation supprimée");
+    toast.success("Formation supprimée");
   } catch (error: any) {
     console.error("Erreur:", error);
     toast.error(error.message || "Impossible de supprimer la formation");
   }
 };
+
 
   // Statistiques
   const stats = formations.reduce(

@@ -129,21 +129,21 @@ export const Employees: React.FC = () => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/Users/getAllEmployees");
+      const res = await axios.get("http://localhost:8000/api/Users/");
       setEmployees(res.data.employees || []);
     } catch(err) { console.error(err); }
   };
 
-  const toggleStatus = async (emp: any) => {
-    try {
-      if(emp.statut==="Actif") {
-        await axios.patch(`http://localhost:8000/api/Users/deactivateEmployee/${emp._id}`);
-      } else {
-        await axios.patch(`http://localhost:8000/api/Users/activateEmployee/${emp._id}`);
-      }
-      fetchEmployees();
-    } catch(err) { console.error(err); }
-  };
+  // const toggleStatus = async (emp: any) => {
+  //   try {
+  //     if(emp.statut==="Actif") {
+  //       await axios.patch(`http://localhost:8000/api/Users/deactivateEmployee/${emp._id}`);
+  //     } else {
+  //       await axios.patch(`http://localhost:8000/api/Users/activateEmployee/${emp._id}`);
+  //     }
+  //     fetchEmployees();
+  //   } catch(err) { console.error(err); }
+  // };
 
   useEffect(() => { fetchEmployees(); }, []);
 

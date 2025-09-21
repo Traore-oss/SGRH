@@ -2,7 +2,8 @@
 import axios from "axios";
 import { 
   X,
-  PieChart
+  PieChart,
+  Plus
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -819,6 +820,17 @@ const creerConge = async (data: any) => {
 };
 
 // Composant EmployeeLeaves
+
+interface DemandeConge {
+  _id: string;
+  typeConge: string;
+  dateDebut: string;
+  dateFin: string;
+  motif: string;
+  etat: string;
+  commentaireResponsable?: string;
+}
+
 const EmployeeLeaves: React.FC = () => {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -886,48 +898,73 @@ const EmployeeLeaves: React.FC = () => {
     }
   };
 
+  const calculateDuration = (dateDebut: string, dateFin: string): number => {
+    const start = new Date(dateDebut);
+    const end = new Date(dateFin);
+    const timeDiff = end.getTime() - start.getTime();
+    return Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+  };
+
+  const getStatusBadge = (etat: string) => {
+    const status = etat?.toLowerCase();
+    if (status === "approuvé") {
+      return "bg-green-100 text-green-700 border-green-200";
+    } else if (status === "refusé") {
+      return "bg-red-100 text-red-700 border-red-200";
+    } else if (status === "en attente") {
+      return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    }
+    return "bg-gray-100 text-gray-700 border-gray-200";
+  };
+
   if (!user || !user.employer) {
-    return <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200 text-gray-700">Chargement...</div>;
+    return <div className="p-6 bg-white rounded-xl shadow-md border border-gray-100 text-gray-700">Chargement...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-          <h3 className="text-lg font-semibold text-gray-800">Mes Demandes de Congé</h3>
+      <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Mes Demandes de Congé</h1>
+            <p className="text-gray-500 mt-1">Gérez vos demandes de congé et consultez leur statut</p>
+          </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105 shadow-md disabled:opacity-50"
             disabled={loading}
           >
             {showForm ? (
               <>
-                <X className="h-4 w-4 mr-1" /> Annuler
+                <X className="h-5 w-5" /> Annuler
               </>
             ) : (
               <>
-                <Calendar className="h-4 w-4 mr-1" /> Nouvelle demande
+                <Plus className="h-5 w-5" /> Nouvelle demande
               </>
             )}
           </button>
         </div>
 
+        {/* Form Modal */}
         {showForm && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Nouvelle Demande de Congé</h3>
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Matricule:</strong> {user.employer.matricule || "Non attribué"}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8 animate-fade-in">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Nouvelle Demande de Congé</h3>
+            
+            <div className="mb-5 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <p className="text-sm text-blue-800 font-medium">
+                <span className="font-semibold">Matricule:</span> {user.employer.matricule || "Non attribué"}
               </p>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type de congé</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Type de congé</label>
                   <select
                     id="typeConge"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                     required
                     value={formData.typeConge}
                     onChange={handleInputChange}
@@ -940,23 +977,25 @@ const EmployeeLeaves: React.FC = () => {
                     <option value="Absence exceptionnelle">Absence exceptionnelle</option>
                   </select>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date début</label>
                   <input
                     type="date"
                     id="dateDebut"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                     required
                     value={formData.dateDebut}
                     onChange={handleInputChange}
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date fin</label>
                   <input
                     type="date"
                     id="dateFin"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                     required
                     value={formData.dateFin}
                     onChange={handleInputChange}
@@ -964,21 +1003,22 @@ const EmployeeLeaves: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Motif</label>
                 <textarea
                   id="motif"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={2}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  rows={3}
                   value={formData.motif}
                   onChange={handleInputChange}
                   required
+                  placeholder="Décrivez la raison de votre demande de congé"
                 />
               </div>
 
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105 shadow-md disabled:opacity-50"
                 disabled={loading}
               >
                 {loading ? "Envoi en cours..." : "Soumettre la demande"}
@@ -987,77 +1027,66 @@ const EmployeeLeaves: React.FC = () => {
           </div>
         )}
 
+        {/* Leaves History */}
         <div className="mt-8">
-          <h4 className="text-lg font-bold text-gray-800 mb-6">Historique de mes congés</h4>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Historique de mes congés</h2>
 
           {conges.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <h3 className="mt-4 text-sm font-medium text-gray-900">Aucun congé enregistré</h3>
-              <p className="mt-1 text-sm text-gray-500">Vous n'avez fait aucune demande de congé pour le moment.</p>
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-200">
+              <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun congé enregistré</h3>
+              <p className="text-gray-500">Vous n'avez fait aucune demande de congé pour le moment.</p>
             </div>
           ) : (
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Type
                       </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Période
                       </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Durée
                       </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         État
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {conges.map((c) => {
-                      const dateDebut = new Date(c.dateDebut);
-                      const dateFin = new Date(c.dateFin);
-                      const duree = Math.ceil((dateFin - dateDebut) / (1000 * 60 * 60 * 24)) + 1;
+                      const duree = calculateDuration(c.dateDebut, c.dateFin);
                       
-                      let badgeColor = "";
-                      if (c.etat?.toLowerCase() === "approuvé") {
-                        badgeColor = "bg-green-100 text-green-800";
-                      } else if (c.etat?.toLowerCase() === "refusé") {
-                        badgeColor = "bg-red-100 text-red-800";
-                      } else if (c.etat?.toLowerCase() === "en attente") {
-                        badgeColor = "bg-yellow-100 text-yellow-800";
-                      } else {
-                        badgeColor = "bg-gray-100 text-gray-800";
-                      }
-
                       return (
                         <tr key={c._id} className="hover:bg-gray-50 transition-colors duration-150">
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{c.typeConge}</div>
-                            <div className="text-sm text-gray-500 truncate max-w-xs">{c.motif}</div>
+                          <td className="px-6 py-5">
+                            <div className="text-sm font-semibold text-gray-900">{c.typeConge}</div>
+                            <div className="text-sm text-gray-500 mt-1 max-w-xs">{c.motif}</div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
+                          <td className="px-6 py-5">
                             <div className="text-sm text-gray-900">
                               {new Date(c.dateDebut).toLocaleDateString('fr-FR')} 
-                              <span className="text-gray-400 mx-1">→</span>
+                              <span className="text-gray-400 mx-2">→</span>
                               {new Date(c.dateFin).toLocaleDateString('fr-FR')}
                             </div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{duree} jour{duree > 1 ? 's' : ''}</div>
+                          <td className="px-6 py-5">
+                            <div className="text-sm font-medium text-gray-700">{duree} jour{duree > 1 ? 's' : ''}</div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}`}>
+                          <td className="px-6 py-5">
+                            <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(c.etat)}`}>
                               {c.etat}
                             </span>
-                            <div className="text-sm text-gray-500 mt-1 max-w-xs truncate">
-                              {c.commentaireResponsable || <span className="text-gray-400">-</span>}
-                            </div>
+                            {c.commentaireResponsable && (
+                              <div className="text-sm text-gray-500 mt-2 max-w-xs">
+                                {c.commentaireResponsable}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -1065,10 +1094,64 @@ const EmployeeLeaves: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
+                {conges.map((c) => {
+                  const duree = calculateDuration(c.dateDebut, c.dateFin);
+                  
+                  return (
+                    <div key={c._id} className="bg-white rounded-xl shadow-sm p-5 border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-semibold text-gray-900">{c.typeConge}</h3>
+                        <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full border ${getStatusBadge(c.etat)}`}>
+                          {c.etat}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-500 mb-3">{c.motif}</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Période</p>
+                          <p className="font-medium text-gray-900">
+                            {new Date(c.dateDebut).toLocaleDateString('fr-FR')} 
+                            <span className="text-gray-400 mx-1">→</span>
+                            {new Date(c.dateFin).toLocaleDateString('fr-FR')}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <p className="text-gray-500">Durée</p>
+                          <p className="font-medium text-gray-900">{duree} jour{duree > 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      
+                      {c.commentaireResponsable && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-sm text-gray-500">Commentaire</p>
+                          <p className="text-sm text-gray-700">{c.commentaireResponsable}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

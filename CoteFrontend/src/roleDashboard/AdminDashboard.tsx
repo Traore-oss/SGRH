@@ -242,6 +242,7 @@ const adminMenuItems = [
 ];
 
 // ==================== UserManagement amélioré ====================
+
 export const UserManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedUser, setSelectedUser] = useState<Employee | null>(null);

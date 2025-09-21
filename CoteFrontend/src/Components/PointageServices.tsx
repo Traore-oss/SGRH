@@ -31,7 +31,7 @@ const getAuthHeaders = () => {
 // 🔹 Récupérer les présences par date
 export const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> => {
   try {
-    const res = await axios.get(`${API_BASE}/getAttendances`, {
+    const res = await axios.get(`${API_BASE}/`, {
       params: { date },
       headers: getAuthHeaders(),
       withCredentials: true,

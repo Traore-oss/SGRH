@@ -6,10 +6,10 @@ const { requireAuth } = require('../midlewere/authmidleware');
 // CRUD complet sur /api/performances
 router.use(requireAuth);
 
-router.post('/', performanceController.ajouterPerformance);
-router.get('/', performanceController.getAllPerformances);
-router.get('/:id', performanceController.getPerformanceById);
-router.put('/:id', performanceController.updatePerformance);
-router.delete('/:id', performanceController.deletePerformance);
+router.post('/',requireAuth, performanceController.ajouterPerformance);
+router.get('/',requireAuth, performanceController.getAllPerformances);
+router.get('/:id',requireAuth, performanceController.getPerformanceById);
+router.put('/:id', requireAuth, performanceController.updatePerformance);
+router.delete('/:id',requireAuth, performanceController.deletePerformance);
 
 module.exports = router;

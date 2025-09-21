@@ -38,17 +38,27 @@ exports.getAllPerformances = async (req, res) => {
     let performances;
 
     if (req.user.role === "Admin") {
+      // Admin : toutes les performances
       performances = await Performance.find()
         .populate({
           path: 'employe',
           select: 'nom prenom email employer.matricule employer.poste employer.departement',
         })
         .sort({ createdAt: -1 });
-    } else {
-      // RH : performances de ses employés
+    } else if (req.user.role === "RH") {
+      // RH : performances de ses employés uniquement
       const mesEmployes = await User.find({ "employer.createdByrh": req.user._id }).select('_id');
+      const mesEmployesIds = mesEmployes.map(emp => emp._id);
 
-      performances = await Performance.find({ employe: { $in: mesEmployes } })
+      performances = await Performance.find({ employe: { $in: mesEmployesIds } })
+        .populate({
+          path: 'employe',
+          select: 'nom prenom email employer.matricule employer.poste employer.departement',
+        })
+        .sort({ createdAt: -1 });
+    } else {
+      // Employé : ses propres performances uniquement
+      performances = await Performance.find({ employe: req.user._id })
         .populate({
           path: 'employe',
           select: 'nom prenom email employer.matricule employer.poste employer.departement',
@@ -58,6 +68,7 @@ exports.getAllPerformances = async (req, res) => {
 
     res.status(200).json(performances);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
@@ -123,6 +134,6 @@ exports.getPerformanceById = async (req, res) => {
 
     res.status(200).json(perf);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };

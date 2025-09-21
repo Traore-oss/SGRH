@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Chart as ChartJS,
   ArcElement,
@@ -57,17 +58,6 @@ const getEmployees = async (): Promise<Employee[]> => {
     return [];
   }
 };
-
-// const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> => {
-//   try {
-//     const res = await fetch(`${API_BASE}/api/pointages/getAttendances?date=${date}`, { credentials: "include" });
-//     if (!res.ok) throw new Error("Erreur lors de la récupération des présences");
-//     return await res.json();
-//   } catch (err) {
-//     console.error(err);
-//     return [];
-//   }
-// };
 const getAttendancesByDate = async (date: string): Promise<AttendanceRecord[]> => {
   try {
     const res = await fetch(`${API_BASE}/api/pointages?date=${date}`, {
@@ -171,52 +161,6 @@ const AttendanceManager: React.FC = () => {
   }, []);
 
   // === Fetch et gestion historique ===
-  // const fetchData = async () => {
-  //   try {
-  //     setIsLoading(true);
-  //     const today = new Date().toISOString().split("T")[0];
-
-  //     // Historique complet
-  //     const attendanceHistoryStr = localStorage.getItem("attendanceHistory");
-  //     const attendanceHistory: Record<string, AttendanceRecord[]> = attendanceHistoryStr
-  //       ? JSON.parse(attendanceHistoryStr)
-  //       : {};
-
-  //     const employeesData = await getEmployees();
-  //     let attendanceData: AttendanceRecord[] = [];
-
-  //     if (attendanceHistory[today]) {
-  //       attendanceData = attendanceHistory[today];
-  //     } else {
-  //       const apiData = await getAttendancesByDate(today);
-  //       attendanceData = employeesData.map(emp => {
-  //         const record = apiData.find(a => a.employe._id === emp._id);
-  //         return record
-  //           ? { ...record, employe: emp }
-  //           : {
-  //               employe: emp,
-  //               date: today,
-  //               statut: "Absent",
-  //               heureArrivee: "-",
-  //               heureDepart: "-",
-  //               heuresTravaillees: "-",
-  //               retard: "-",
-  //             };
-  //       });
-  //       // Sauvegarder dans l'historique
-  //       attendanceHistory[today] = attendanceData;
-  //       localStorage.setItem("attendanceHistory", JSON.stringify(attendanceHistory));
-  //     }
-
-  //     setEmployees(employeesData);
-  //     setAttendance(attendanceData);
-  //     setIsLoading(false);
-  //     showNotification("success", "Données chargées avec succès");
-  //   } catch {
-  //     setIsLoading(false);
-  //     showNotification("error", "Erreur lors du chargement des données");
-  //   }
-  // };
 const fetchData = async () => {
   try {
     setIsLoading(true);

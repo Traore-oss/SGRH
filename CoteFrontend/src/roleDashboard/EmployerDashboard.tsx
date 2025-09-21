@@ -584,7 +584,7 @@ const EmployeeOverview: React.FC = () => {
         // Filtrer pour n'avoir que les congés de l'employé connecté
         const userConges = demandesData.filter(conge => {
           const employeId = typeof conge.employe === 'string' ? conge.employe : conge.employe._id;
-          return employeId === user?.id;
+          return employeId === user?._id;
         });
         setConges(userConges);
       } catch (err: any) {
@@ -595,7 +595,7 @@ const EmployeeOverview: React.FC = () => {
       }
     };
 
-    if (user?.id) {
+    if (user?._id) {
       fetchConges();
     }
   }, [user]);
@@ -1073,30 +1073,33 @@ const EmployeeLeaves: React.FC = () => {
   );
 };
 
-interface EmployeeAttendanceProps {
-  days?: number;
+/* eslint-disable react-refresh/only-export-components */
+export interface User {
+  _id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: "Admin" | "RH" | "Employe";
+  isActive: boolean;
+  departement?: string;
+  matricule?: string; // ✅ doit correspondre exactement
+  employer?: any;
 }
-// Types adaptés au front
+
+
 export interface AttendanceRecord {
-  employe: any; // ou un type `User` si tu en as un
+  employe: Employee;
   date: string;
-  statut: "Présent" | "Absent";
+  statut: "Présent" | "Absent" | "Retard";
   heureArrivee: string;
   heureDepart: string;
   heuresTravaillees: string;
-  retard: string;
+  retard?: string;
 }
 
-export interface AttendanceApiResponse {
-  attendance?: {
-    presence: number;
-    delay?: number;
-    heureArrivee?: string;
-    heureDepart?: string;
-  };
+interface EmployeeAttendanceProps {
+  days?: number;
 }
-
-
 
 export const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7 }) => {
   const { user } = useAuth();
@@ -1104,163 +1107,332 @@ export const EmployeeAttendance: React.FC<EmployeeAttendanceProps> = ({ days = 7
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 📌 Charger l’historique des présences
-const fetchAttendanceHistory = useCallback(async () => {
-  if (!user?._id) {
-    setError("Utilisateur non défini");
-    setAttendanceHistory([]);
-    setLoading(false);
-    return;
-  }
+  // Formater heure "HH:mm:ss" -> "HH:mm"
+  const formatTime = (time?: string) => {
+    if (!time || time === "-") return "-";
+    const parts = time.split(":");
+    if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+    return time;
+  };
 
-  setLoading(true);
-  try {
-    const history: AttendanceRecord[] = [];
-
-    for (let i = 0; i < days; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toLocaleDateString("fr-CA");
-
-      // ✅ Appel API qui retourne AttendanceApiResponse
-      const res = await getAttendancesByDate(dateStr);
-
-      const record: AttendanceRecord = {
-        employe: user,
-        date: dateStr,
-        statut: res.attendance?.presence && res.attendance.presence > 0 ? "Présent" : "Absent",
-        heureArrivee: res.attendance?.heureArrivee || "-",
-        heureDepart: res.attendance?.heureDepart || "-",
-        heuresTravaillees: res.attendance?.presence ? `${res.attendance.presence} h` : "0h",
-        retard: res.attendance?.delay ? `${res.attendance.delay} min` : "-",
-      };
-
-      history.push(record);
+  // 🔹 Récupération de l'historique
+  const fetchAttendanceHistory = useCallback(async () => {
+    if (!user?._id) {
+      setError("Utilisateur non défini");
+      setAttendanceHistory([]);
+      setLoading(false);
+      return;
     }
 
-    setAttendanceHistory(history);
-    setError(null);
-  } catch (err) {
-    console.error(err);
-    setError("Erreur lors du chargement des présences");
-  } finally {
-    setLoading(false);
-  }
-}, [user, days]);
+    setLoading(true);
+    try {
+      const history: AttendanceRecord[] = [];
+      const now = new Date();
 
+      for (let i = 0; i < days; i++) {
+        const date = new Date();
+        date.setDate(now.getDate() - i);
+        const dateStr = date.toISOString().split("T")[0];
+
+        // 🔹 Appel backend pour récupérer tous les pointages du jour
+        const res: AttendanceRecord[] = await getAttendancesByDate(dateStr);
+
+        // 🔹 Chercher le pointage de l'utilisateur courant
+        const userRecord = res.find(
+          (r) => r.employe._id.toString() === user._id.toString()
+        );
+
+        const record: AttendanceRecord = {
+          employe: user,
+          date: dateStr,
+          statut: userRecord?.statut || "Absent",
+          heureArrivee:
+            userRecord?.heureArrivee && userRecord.heureArrivee !== "-"
+              ? formatTime(userRecord.heureArrivee)
+              : "-",
+          heureDepart:
+            userRecord?.heureDepart && userRecord.heureDepart !== "-"
+              ? formatTime(userRecord.heureDepart)
+              : "-",
+          heuresTravaillees:
+            userRecord?.heuresTravaillees && userRecord.heuresTravaillees !== "-"
+              ? userRecord.heuresTravaillees
+              : "0h",
+          retard:
+            userRecord?.retard && userRecord.retard !== "-"
+              ? userRecord.retard
+              : "-",
+        };
+
+        history.push(record);
+      }
+
+      setAttendanceHistory(history);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors du chargement des présences");
+    } finally {
+      setLoading(false);
+    }
+  }, [user, days]);
 
   useEffect(() => {
     if (user?._id) fetchAttendanceHistory();
   }, [fetchAttendanceHistory, user]);
 
-  // 📌 Pointer arrivée
-  const handleMarkArrival = async () => {
-    if (!user?._id) return;
-    try {
-      const todayStr = new Date().toLocaleDateString("fr-CA");
-      await axios.put("/api/attendance/arrivee", {
-        employeId: user._id,
-        date: todayStr,
-        checked: true,
-      });
-      toast.success("Arrivée pointée avec succès");
-      fetchAttendanceHistory();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors du pointage d'arrivée");
-    }
-  };
-
-  // 📌 Pointer départ
-  const handleMarkDeparture = async () => {
-    if (!user?._id) return;
-    try {
-      const todayStr = new Date().toLocaleDateString("fr-CA");
-      await axios.put("/api/attendance/depart", {
-        employeId: user._id,
-        date: todayStr,
-      });
-      toast.success("Départ pointé avec succès");
-      fetchAttendanceHistory();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors du pointage de départ");
-    }
-  };
-
-  if (loading) return <p>Chargement des présences...</p>;
-  if (!user) return <p className="text-red-500">Veuillez vous connecter pour voir vos présences.</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
-
-  const todayStr = new Date().toLocaleDateString("fr-CA");
-  const todayRecord = attendanceHistory.find((r) => r.date === todayStr) || {
-    employe: user,
-    date: todayStr,
-    statut: "Absent",
-    heureArrivee: "-",
-    heureDepart: "-",
-    heuresTravaillees: "-",
-    retard: "-",
-  };
-
+  // Formatage des dates
   const formatDateLabel = (dateStr: string) => {
-    const today = new Date().toLocaleDateString("fr-CA");
+    const today = new Date().toISOString().split("T")[0];
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toLocaleDateString("fr-CA");
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
     if (dateStr === today) return "Aujourd'hui";
     if (dateStr === yesterdayStr) return "Hier";
 
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("fr-FR", {
+    return new Date(dateStr).toLocaleDateString("fr-FR", {
       weekday: "short",
       day: "numeric",
       month: "short",
     });
   };
 
+  // Obtenir la classe de couleur en fonction du statut
+  const getStatusColor = (statut: string) => {
+    switch (statut) {
+      case "Présent":
+        return "bg-green-100 text-green-800";
+      case "Absent":
+        return "bg-red-100 text-red-800";
+      case "Retard":
+        return "bg-yellow-100 text-yellow-800";
+      case "Congé":
+        return "bg-blue-100 text-blue-800";
+      case "Télétravail":
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Afficher un indicateur de chargement stylisé
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+        <span className="ml-3 text-gray-600">Chargement des présences...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <p>Veuillez vous connecter pour voir vos présences.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <p>{error}</p>
+        <button
+          onClick={fetchAttendanceHistory}
+          className="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+            </svg>
+            Mes Présences ({days} derniers jours)
+          </h3>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 text-gray-600 text-sm font-medium">
+                <th className="px-6 py-3 text-left">Date</th>
+                <th className="px-6 py-3 text-center">Arrivée</th>
+                <th className="px-6 py-3 text-center">Départ</th>
+                <th className="px-6 py-3 text-center">Heures travaillées</th>
+                <th className="px-6 py-3 text-center">Retard</th>
+                <th className="px-6 py-3 text-center">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {attendanceHistory.map((record, index) => (
+                <tr key={record.date} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {formatDateLabel(record.date)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(record.date).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-mono text-gray-700">
+                    {record.heureArrivee}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-mono text-gray-700">
+                    {record.heureDepart}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-gray-900">
+                    {record.heuresTravaillees}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    {record.retard !== "-" ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {record.retard}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.statut)}`}>
+                      {record.statut}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {attendanceHistory.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p className="mt-4 text-gray-500">Aucune donnée de présence disponible</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+
+import { type Performance } from "../Components/ServicePerformance"; // ← utilise ton service centralisé
+
+interface Goal {
+  _id: string;
+  objectif: string;
+  realisation: "Non démarré" | "En cours" | "Terminé";
+  evaluation: string;
+  createdAt: string;
+  employe: {
+    _id: string;
+    nom: string;
+    prenom: string;
+  };
+}
+
+// Convertit le statut en pourcentage pour la barre de progression
+const realisationToPercent = (realisation: Goal["realisation"]) => {
+  switch (realisation) {
+    case "Non démarré": return 0;
+    case "En cours": return 50;
+    case "Terminé": return 100;
+    default: return 0;
+  }
+};
+
+export const EmployeeGoals: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const fetchGoals = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // ✅ Utilisation de API_BASE défini dans ton service
+        const res = await axios.get<Performance[]>(`${API_BASE}/performances`, {
+          withCredentials: true,
+        });
+
+        console.log("⚡ Résultat API /performances :", res.data);
+
+        // Filtrer les performances si le backend renvoie plus de données
+        const data: Goal[] = res.data.map((perf) => ({
+          _id: perf._id!,
+          objectif: perf.objectif,
+          realisation: perf.realisation,
+          evaluation: perf.evaluation,
+          createdAt: perf.createdAt!,
+          employe: typeof perf.employe === "string"
+            ? { _id: perf.employe, nom: "", prenom: "" }
+            : {
+                _id: perf.employe._id,
+                nom: perf.employe.nom,
+                prenom: perf.employe.prenom,
+              },
+        }));
+
+        setGoals(data);
+      } catch (err: any) {
+        console.error("Erreur récupération des performances :", err);
+        setError("Impossible de récupérer les performances.");
+        setGoals([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGoals();
+  }, [user]);
+
+  if (authLoading || loading) return <div>Chargement des objectifs...</div>;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!goals.length) return <div>Aucun objectif trouvé.</div>;
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Présences</h3>
-
-        {/* Boutons arrivée & départ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <button
-            onClick={handleMarkArrival}
-            disabled={todayRecord.heureArrivee !== "-"}
-            className={`p-4 rounded-lg transition-colors flex flex-col items-center ${
-              todayRecord.heureArrivee !== "-" ? "bg-gray-50 cursor-not-allowed" : "bg-green-50 hover:bg-green-100"
-            }`}
-          >
-            <Clock className="h-8 w-8 text-green-600 mb-2" />
-            <h4 className="font-medium text-gray-800">Pointer l'arrivée</h4>
-            <p className="text-sm text-gray-600">{todayRecord.heureArrivee}</p>
-          </button>
-
-          <button
-            onClick={handleMarkDeparture}
-            disabled={todayRecord.heureArrivee === "-" || todayRecord.heureDepart !== "-"}
-            className={`p-4 rounded-lg transition-colors flex flex-col items-center ${
-              todayRecord.heureArrivee === "-" ? "bg-gray-50 cursor-not-allowed" : "bg-red-50 hover:bg-red-100"
-            }`}
-          >
-            <Clock className="h-8 w-8 text-red-600 mb-2" />
-            <h4 className="font-medium text-gray-800">Pointer le départ</h4>
-            <p className="text-sm text-gray-600">{todayRecord.heureDepart}</p>
-          </button>
-        </div>
-
-        {/* Historique */}
-        <div className="space-y-3">
-          {attendanceHistory.map((record) => (
-            <div key={record.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-gray-600">{formatDateLabel(record.date)}</span>
-              <span className="text-sm font-medium text-gray-800">
-                {record.heureArrivee !== "-"
-                  ? `${record.heureArrivee} - ${record.heureDepart !== "-" ? record.heureDepart : "En cours"}`
-                  : "Non pointé"}{" "}
-                ({record.heuresTravaillees !== "-" ? record.heuresTravaillees : "0h"})
-              </span>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Objectifs</h3>
+        <div className="space-y-4">
+          {goals.map((goal) => (
+            <div key={goal._id} className="p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-800">{goal.objectif}</h4>
+                <span className="text-sm text-blue-600 font-medium">{goal.evaluation}</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full"
+                  style={{ width: `${realisationToPercent(goal.realisation)}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Créé le: {new Date(goal.createdAt).toLocaleDateString()}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Employé: {goal.employe.nom} {goal.employe.prenom}
+              </p>
             </div>
           ))}
         </div>
@@ -1269,37 +1441,11 @@ const fetchAttendanceHistory = useCallback(async () => {
   );
 };
 
-const EmployeeGoals: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Mes Objectifs</h3>
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-800">Certification React</h4>
-              <span className="text-sm text-blue-600 font-medium">75%</span>
-            </div>
-            <div className="w-full bg-blue-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">Échéance: 31 décembre 2024</p>
-          </div>
-          <div className="p-4 bg-green-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-800">Projet E-commerce</h4>
-              <span className="text-sm text-green-600 font-medium">90%</span>
-            </div>
-            <div className="w-full bg-green-200 rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full" style={{ width: '90%' }}></div>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">Échéance: 15 septembre 2024</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+
+
+
+
+
 
 const EmployeePayslips: React.FC = () => {
   return (

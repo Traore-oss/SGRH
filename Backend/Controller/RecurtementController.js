@@ -2,7 +2,7 @@ const Recrutement = require("../Models/recrutementModel");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
 
-// Créer une offre avec envoi du mail
+// ==================== Création d'une offre ====================
 exports.createOffre = async (req, res) => {
   try {
     const rhId = req.user._id;
@@ -12,17 +12,14 @@ exports.createOffre = async (req, res) => {
       return res.status(400).json({ message: "Poste et description sont requis." });
     }
 
-    // Vérification du département
     let departementId = null;
     if (departement) {
-      if (mongoose.Types.ObjectId.isValid(departement)) {
-        departementId = departement;
-      } else {
+      if (!mongoose.Types.ObjectId.isValid(departement)) {
         return res.status(400).json({ message: "ID de département invalide" });
       }
+      departementId = departement;
     }
 
-    // Création de l'offre
     const offre = new Recrutement({
       rh: rhId,
       poste,
@@ -33,60 +30,40 @@ exports.createOffre = async (req, res) => {
 
     await offre.save();
 
-    // Génération du lien de candidature
+    // Lien candidature
     const lienCandidature = `${process.env.CLIENT_URL || "http://localhost:5173"}/candidature/${offre._id}`;
 
-    // Configuration de nodemailer
+    // Envoi mail au RH
     const transporter = nodemailer.createTransport({
-      service: "gmail", // ou autre service SMTP
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
+      service: "gmail",
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     });
 
-    // Options du mail
-    const mailOptions = {
+    await transporter.sendMail({
       from: `"SGRH" <${process.env.EMAIL_USER}>`,
-      to: req.user.email, // envoi au RH qui crée l'offre
+      to: req.user.email,
       subject: "Nouvelle offre de recrutement",
       html: `
         <h3>Une nouvelle offre a été créée !</h3>
         <p><strong>Poste :</strong> ${poste}</p>
         <p><strong>Description :</strong> ${description}</p>
-        <p>Pour consulter et gérer les candidatures, cliquez sur le lien :</p>
-        <a href="${lienCandidature}" target="_blank">Voir l'offre et candidatures</a>
+        <p>Pour gérer les candidatures, cliquez sur :</p>
+        <a href="${lienCandidature}" target="_blank">Voir l'offre</a>
       `,
-    };
-
-    // Envoi du mail
-    await transporter.sendMail(mailOptions);
-
-    res.status(201).json({
-      message: "Offre créée ✅ et mail envoyé au RH",
-      offre,
-      lienCandidature
     });
 
-  } catch (error) {
-    console.error("Erreur createOffre:", error);
-    res.status(500).json({ message: "Erreur création offre", error: error.message });
+    res.status(201).json({ message: "Offre créée ✅ et mail envoyé au RH", offre, lienCandidature });
+  } catch (err) {
+    console.error("Erreur createOffre:", err);
+    res.status(500).json({ message: "Erreur création offre", error: err.message });
   }
 };
 
-
-// Récupérer toutes les offres (filtrées selon le rôle)
+// ==================== Récupérer toutes les offres ====================
 exports.getOffres = async (req, res) => {
   try {
     let query = {};
-
-    // ⚡ Si c'est un RH → il ne voit que ses offres
-    if (req.user.role === "RH") {
-      query.rh = req.user._id;
-    }
-
-    // ⚡ Si Admin → il voit tout (pas de filtre)
-    // ⚡ Tu peux étendre si Employé doit voir aussi seulement les offres visibles publiquement
+    if (req.user.role === "RH") query.rh = req.user._id;
 
     const offres = await Recrutement.find(query)
       .populate("departement", "nom code_departement")
@@ -99,37 +76,46 @@ exports.getOffres = async (req, res) => {
   }
 };
 
-
-// Ajouter un candidat
+// ==================== Ajouter un candidat et récupérer son ID ====================
 exports.addCandidat = async (req, res) => {
   try {
     const { prenom, nom, email } = req.body;
     const { offreId } = req.params;
-
-    console.log("Paramètre offreId reçu :", offreId); // ← debug
 
     if (!offreId) return res.status(400).json({ message: "Offre introuvable." });
 
     const offre = await Recrutement.findById(offreId);
     if (!offre) return res.status(404).json({ message: "Offre non trouvée" });
 
-    let cvUrl = "";
-    if (req.file) {
-      cvUrl = `${req.protocol}://${req.get("host")}/uploads/cv/${req.file.filename}`;
-    }
+    let cvUrl = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/cv/${req.file.filename}`
+      : "";
 
-    offre.candidats.push({ prenom, nom, email, cvUrl, statutCandidature: "En attente" });
+    const newCandidat = { prenom, nom, email, cvUrl, statutCandidature: "En attente" };
+    const addedCandidat = offre.candidats.create(newCandidat);
+    offre.candidats.push(addedCandidat);
+
     await offre.save();
 
-    res.status(200).json({ message: "Candidat ajouté ✅", offre });
+    res.status(201).json({
+      message: "Candidat ajouté ✅",
+      candidat: {
+        _id: addedCandidat._id,
+        prenom: addedCandidat.prenom,
+        nom: addedCandidat.nom,
+        email: addedCandidat.email,
+        statutCandidature: addedCandidat.statutCandidature,
+        cvUrl: addedCandidat.cvUrl,
+        dateCandidature: addedCandidat.dateCandidature,
+      },
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erreur lors de l'ajout du candidat" });
+    console.error("Erreur addCandidat:", err);
+    res.status(500).json({ message: "Erreur lors de l'ajout du candidat", error: err.message });
   }
 };
 
-
-// Modifier une offre
+// ==================== Modifier une offre ====================
 exports.updateOffre = async (req, res) => {
   try {
     const { offreId } = req.params;
@@ -143,7 +129,7 @@ exports.updateOffre = async (req, res) => {
   }
 };
 
-// Supprimer une offre
+// ==================== Supprimer une offre ====================
 exports.deleteOffre = async (req, res) => {
   try {
     const { offreId } = req.params;
@@ -154,19 +140,74 @@ exports.deleteOffre = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la suppression de l'offre" });
   }
 };
-// Récupérer la liste des candidats pour une offre donnée
+
+// ==================== Récupérer les candidats d'une offre ====================
 exports.getCandidats = async (req, res) => {
   try {
     const { offreId } = req.params;
 
     if (!offreId) return res.status(400).json({ message: "Offre introuvable." });
 
-    const offre = await Recrutement.findById(offreId).populate("departement", "nom code_departement").populate("rh", "nom prenom email");
+    const offre = await Recrutement.findById(offreId)
+      .populate("departement", "nom code_departement")
+      .populate("rh", "nom prenom email");
+
     if (!offre) return res.status(404).json({ message: "Offre non trouvée." });
 
     res.status(200).json({ candidats: offre.candidats });
   } catch (err) {
     console.error("Erreur getCandidats:", err);
     res.status(500).json({ message: "Erreur lors de la récupération des candidats" });
+  }
+};
+
+// ==================== Accepter ou refuser une candidature ====================
+exports.updateCandidatureStatus = async (req, res) => {
+  try {
+    const { offreId, candidatId } = req.params;
+    const { statut } = req.body;
+
+    if (!["Accepté", "Refusé"].includes(statut)) {
+      return res.status(400).json({ message: "Statut invalide. Utilisez 'Accepté' ou 'Refusé'." });
+    }
+
+    const offre = await Recrutement.findById(offreId);
+    if (!offre) return res.status(404).json({ message: "Offre non trouvée" });
+
+    // Recherche du candidat
+    const candidatIndex = offre.candidats.findIndex(c => c._id.toString() === candidatId);
+    if (candidatIndex === -1) return res.status(404).json({ message: "Candidat introuvable" });
+
+    // Mise à jour du statut
+    offre.candidats[candidatIndex].statutCandidature = statut;
+    await offre.save();
+
+    // Envoi mail au candidat
+    const candidat = offre.candidats[candidatIndex];
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    });
+
+    await transporter.sendMail({
+      from: `"SGRH" <${process.env.EMAIL_USER}>`,
+      to: candidat.email,
+      subject: `Votre candidature pour le poste ${offre.poste}`,
+      html: `
+        <p>Bonjour ${candidat.prenom},</p>
+        <p>Votre candidature pour le poste <strong>${offre.poste}</strong> a été <strong>${statut}</strong>.</p>
+        ${statut === "Accepté"
+          ? "<p>Félicitations ! Nous vous contacterons prochainement.</p>"
+          : "<p>Merci pour votre candidature, nous vous souhaitons bonne continuation.</p>"
+        }
+        <p>Cordialement,</p>
+        <p>L'équipe SGRH</p>
+      `,
+    });
+
+    res.status(200).json({ message: `Candidature ${statut.toLowerCase()} ✅ et mail envoyé`, candidat });
+  } catch (err) {
+    console.error("Erreur updateCandidatureStatus:", err);
+    res.status(500).json({ message: "Erreur lors de la mise à jour du statut de candidature", error: err.message });
   }
 };

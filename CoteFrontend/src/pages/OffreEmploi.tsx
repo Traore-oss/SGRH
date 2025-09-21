@@ -1,17 +1,21 @@
-// export default Recrutement;
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Plus, Edit, Trash2, Eye, X, Download, Check, XCircle, Building, Users, Calendar } from "lucide-react";
 
 const API_BASE = "http://localhost:8000/api/recrutement";
 
 // === Types ===
 interface Candidat {
+  _id: string;
   prenom: string;
   nom: string;
   email: string;
   cvUrl?: string;
-  statutCandidature?: "En attente" | "Retenu" | "Rejeté";
+  statutCandidature?: "En attente" | "Accepté" | "Refusé";
 }
 
 interface Offre {
@@ -44,6 +48,7 @@ const Recrutement = () => {
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showCandidatsModal, setShowCandidatsModal] = useState<Offre | null>(null);
+  const [loadingActions, setLoadingActions] = useState<{ [key: string]: boolean }>({});
 
   // === Charger les offres ===
   const fetchOffres = useCallback(async () => {
@@ -98,6 +103,7 @@ const Recrutement = () => {
       setNewOffre({ poste: "", description: "", departement: "", statut: "Ouvert" });
       setError("");
       setShowModal(false);
+      toast.success("Offre créée ✅");
     } catch (err: any) {
       console.error("AxiosError:", err);
       setError(err.response?.data?.message || "Erreur lors de la création de l'offre");
@@ -110,6 +116,7 @@ const Recrutement = () => {
       const res = await axios.put(`${API_BASE}/${editingOffre._id}`, editingOffre, { withCredentials: true });
       setOffres(offres.map(o => (o._id === editingOffre._id ? res.data.updated : o)));
       setEditingOffre(null);
+      toast.success("Offre mise à jour ✅");
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || "Erreur lors de la mise à jour de l'offre");
@@ -118,11 +125,15 @@ const Recrutement = () => {
 
   const handleDeleteOffre = async (id: string) => {
     try {
+      setLoadingActions(prev => ({ ...prev, [id]: true }));
       await axios.delete(`${API_BASE}/${id}`, { withCredentials: true });
       setOffres(offres.filter(o => o._id !== id));
+      toast.success("Offre supprimée ✅");
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || "Erreur lors de la suppression de l'offre");
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -139,9 +150,57 @@ const Recrutement = () => {
     }
   };
 
+  // === Mettre à jour le statut d'un candidat ===
+  const updateCandidatStatus = async (candidatId: string, statut: "Accepté" | "Refusé") => {
+    if (!showCandidatsModal) return;
+    try {
+      setLoadingActions(prev => ({ ...prev, [candidatId]: true }));
+      
+      await axios.patch(
+        `${API_BASE}/${showCandidatsModal._id}/candidats/${candidatId}/status`,
+        { statut },
+        { withCredentials: true }
+      );
+
+      // Mise à jour locale
+      setShowCandidatsModal({
+        ...showCandidatsModal,
+        candidats: showCandidatsModal.candidats.map(c =>
+          c._id === candidatId ? { ...c, statutCandidature: statut } : c
+        ),
+      });
+
+      toast.success(`Candidature ${statut.toLowerCase()} ✅`);
+    } catch (err: any) {
+      console.error("Erreur updateCandidatStatus:", err);
+      toast.error("Erreur lors de la mise à jour du statut");
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [candidatId]: false }));
+    }
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "Ouvert": return "bg-green-100 text-green-800 border-green-200";
+      case "En cours": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Clôturé": return "bg-red-100 text-red-800 border-red-200";
+      case "Accepté": return "bg-green-100 text-green-800 border-green-200";
+      case "Refusé": return "bg-red-100 text-red-800 border-red-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement des offres...</p>
@@ -151,270 +210,392 @@ const Recrutement = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6">Gestion des Recrutements</h1>
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des Recrutements</h1>
+          <p className="text-gray-600">Gérez vos offres d'emploi et candidatures</p>
+        </div>
 
-      {/* Bouton pour ouvrir la modale */}
-      <div className="flex justify-end mb-4">
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm md:text-base"
-          onClick={() => setShowModal(true)}
-        >
-          Créer une nouvelle offre
-        </button>
-      </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
 
-      {/* === Modal de création === */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-4 md:p-6 rounded shadow-md w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">Nouvelle Offre</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Poste"
-                className="w-full border p-2 rounded"
-                value={newOffre.poste}
-                onChange={e => setNewOffre({ ...newOffre, poste: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                className="w-full border p-2 rounded"
-                value={newOffre.description}
-                onChange={e => setNewOffre({ ...newOffre, description: e.target.value })}
-              />
-              <select
-                name="departement"
-                className={`w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:border-transparent ${
-                  newOffre.departement === "" ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
-                }`}
-                value={newOffre.departement}
-                onChange={e => setNewOffre({ ...newOffre, departement: e.target.value })}
-              >
-                <option value="">Sélectionner un département</option>
-                {departementsList.map(d => (
-                  <option key={d._id} value={d._id}>
-                    {d.nom} ({d.code_departement})
-                  </option>
-                ))}
-              </select>
-              <select
-                className="w-full border p-2 rounded"
-                value={newOffre.statut}
-                onChange={e => setNewOffre({ ...newOffre, statut: e.target.value as any })}
-              >
-                <option value="Ouvert">Ouvert</option>
-                <option value="En cours">En cours</option>
-                <option value="Clôturé">Clôturé</option>
-              </select>
-              <div className="flex gap-2 justify-end">
-                <button
-                  className="bg-blue-600 text-white px-3 py-1 md:px-4 md:py-2 rounded hover:bg-blue-700 text-sm md:text-base"
-                  onClick={handleCreateOffre}
-                >
-                  Créer
-                </button>
-                <button
-                  className="bg-gray-400 text-white px-3 py-1 md:px-4 md:py-2 rounded hover:bg-gray-500 text-sm md:text-base"
-                  onClick={() => setShowModal(false)}
-                >
-                  Annuler
-                </button>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <Building className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">{offres.length}</h3>
+                <p className="text-gray-600">Offres actives</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-50 rounded-lg">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {offres.reduce((total, offre) => total + offre.candidats.length, 0)}
+                </h3>
+                <p className="text-gray-600">Candidatures totales</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <Calendar className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {offres.filter(o => o.statut === "Ouvert").length}
+                </h3>
+                <p className="text-gray-600">Offres ouvertes</p>
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* === Modal d'édition === */}
-      {editingOffre && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-4 md:p-6 rounded shadow-md w-full max-w-md max-h-screen overflow-y-auto">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">Modifier Offre</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Poste"
-                className="w-full border p-2 rounded"
-                value={editingOffre.poste}
-                onChange={e => setEditingOffre({ ...editingOffre, poste: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                className="w-full border p-2 rounded"
-                value={editingOffre.description}
-                onChange={e => setEditingOffre({ ...editingOffre, description: e.target.value })}
-              />
-              <select
-                name="departement"
-                className={`w-full border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:border-transparent ${
-                  editingOffre.departement === "" ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"
-                }`}
-                value={typeof editingOffre.departement === "object" ? editingOffre.departement._id : editingOffre.departement}
-                onChange={e => setEditingOffre({ ...editingOffre, departement: e.target.value })}
-              >
-                <option value="">Sélectionner un département</option>
-                {departementsList.map(d => (
-                  <option key={d._id} value={d._id}>
-                    {d.nom} ({d.code_departement})
-                  </option>
-                ))}
-              </select>
-              <select
-                className="w-full border p-2 rounded"
-                value={editingOffre.statut}
-                onChange={e => setEditingOffre({ ...editingOffre, statut: e.target.value as any })}
-              >
-                <option value="Ouvert">Ouvert</option>
-                <option value="En cours">En cours</option>
-                <option value="Clôturé">Clôturé</option>
-              </select>
-              <div className="flex gap-2 justify-end">
-                <button
-                  className="bg-green-600 text-white px-3 py-1 md:px-4 md:py-2 rounded hover:bg-green-700 text-sm md:text-base"
-                  onClick={handleUpdateOffre}
-                >
-                  Mettre à jour
-                </button>
-                <button
-                  className="bg-gray-400 text-white px-3 py-1 md:px-4 md:py-2 rounded hover:bg-gray-500 text-sm md:text-base"
-                  onClick={cancelEditing}
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
+        {/* Actions */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-semibold text-gray-900">Liste des offres</h2>
           </div>
+          <button
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => setShowModal(true)}
+          >
+            <Plus className="h-5 w-5" />
+            Nouvelle offre
+          </button>
         </div>
-      )}
 
-      {/* === Tableau des Offres === */}
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poste</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Département</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Candidats</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {offres.map(offre => (
-              <tr key={offre._id}>
-                <td className="px-4 py-4">
-                  <div className="text-sm font-medium text-gray-900">{offre.poste}</div>
-                  <div className="text-sm text-gray-500 truncate max-w-xs">{offre.description}</div>
-                  <div className="text-sm text-gray-500 sm:hidden mt-1">
-                    Dépt: {typeof offre.departement === "string" ? offre.departement : offre.departement?.nom || "-"}
-                  </div>
-                  <div className="text-sm text-gray-500 md:hidden mt-1">
-                    Candidats: {offre.candidats.length}
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-500 hidden sm:table-cell">
-                  {typeof offre.departement === "string" ? offre.departement : offre.departement?.nom || "-"}
-                </td>
-                <td className="px-4 py-4">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${offre.statut === "Ouvert" ? "bg-green-100 text-green-800" : 
-                     offre.statut === "En cours" ? "bg-yellow-100 text-yellow-800" : 
-                     "bg-red-100 text-red-800"}`}>
-                    {offre.statut}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-500 hidden md:table-cell">{offre.candidats.length} candidat(s)</td>
-                <td className="px-4 py-4 text-sm font-medium">
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                      className="text-indigo-600 hover:text-indigo-900 px-2 py-1 bg-indigo-50 rounded text-xs sm:text-sm"
-                      onClick={() => startEditing(offre)}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      className="text-red-600 hover:text-red-900 px-2 py-1 bg-red-50 rounded text-xs sm:text-sm"
-                      onClick={() => handleDeleteOffre(offre._id)}
-                    >
-                      Supprimer
-                    </button>
-                    <button
-                      className="text-green-600 hover:text-green-900 px-2 py-1 bg-green-50 rounded text-xs sm:text-sm"
-                      onClick={() => openCandidatsModal(offre)}
-                    >
-                      Voir candidats ({offre.candidats.length})
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Message si aucune offre */}
-      {offres.length === 0 && !loading && (
-        <div className="bg-white p-6 rounded-lg shadow text-center">
-          <p className="text-gray-500">Aucune offre de recrutement pour le moment.</p>
-        </div>
-      )}
-
-      {/* === Modal des Candidats === */}
-      {showCandidatsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-4 md:p-6 rounded shadow-md w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
-              Candidats pour : {showCandidatsModal.poste}
-            </h2>
-            {showCandidatsModal.candidats.length === 0 ? (
-              <p>Aucun candidat pour cette offre.</p>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prénom</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CV</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+        {/* Offres Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Poste
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                    Département
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                    Candidats
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {offres.map((offre) => (
+                  <tr key={offre._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">{offre.poste}</span>
+                        <span className="text-sm text-gray-500 line-clamp-2">{offre.description}</span>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 lg:hidden">
+                          <Building className="h-3 w-3" />
+                          {typeof offre.departement === "string" ? offre.departement : offre.departement?.nom || "-"}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 md:hidden">
+                          <Users className="h-3 w-3" />
+                          {offre.candidats.length} candidat(s)
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 hidden lg:table-cell">
+                      {typeof offre.departement === "string" ? offre.departement : offre.departement?.nom || "-"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBadgeClass(offre.statut)}`}>
+                        {offre.statut}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 hidden md:table-cell">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        {offre.candidats.length}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openCandidatsModal(offre)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Voir candidats"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => startEditing(offre)}
+                          className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOffre(offre._id)}
+                          disabled={loadingActions[offre._id]}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Supprimer"
+                        >
+                          {loadingActions[offre._id] ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {showCandidatsModal.candidats.map((c, idx) => (
-                    <tr key={idx}>
-                      <td className="px-4 py-2">{c.prenom}</td>
-                      <td className="px-4 py-2">{c.nom}</td>
-                      <td className="px-4 py-2">{c.email}</td>
-                      <td className="px-4 py-2">
-                        {c.cvUrl ? (
-                          <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            Voir CV
-                          </a>
-                        ) : (
-                          "N/A"
-                        )}
-                      </td>
-                      <td className="px-4 py-2">{c.statutCandidature || "En attente"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            <div className="flex justify-end mt-4">
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {offres.length === 0 && !loading && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 mb-4">
+                <Users className="h-12 w-12 mx-auto" />
+              </div>
+              <p className="text-gray-500">Aucune offre de recrutement pour le moment.</p>
               <button
-                className="bg-gray-400 text-white px-3 py-1 md:px-4 md:py-2 rounded hover:bg-gray-500 text-sm md:text-base"
-                onClick={() => setShowCandidatsModal(null)}
+                onClick={() => setShowModal(true)}
+                className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
               >
-                Fermer
+                Créer votre première offre
               </button>
             </div>
-          </div>
+          )}
         </div>
-      )}
+
+        {/* Modals */}
+        {(showModal || editingOffre) && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {editingOffre ? "Modifier l'offre" : "Nouvelle offre"}
+                </h2>
+                <button
+                  onClick={editingOffre ? cancelEditing : () => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Poste *</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Développeur Frontend"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={editingOffre?.poste || newOffre.poste}
+                    onChange={e =>
+                      editingOffre
+                        ? setEditingOffre({ ...editingOffre, poste: e.target.value })
+                        : setNewOffre({ ...newOffre, poste: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                  <textarea
+                    placeholder="Description détaillée du poste..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={editingOffre?.description || newOffre.description}
+                    onChange={e =>
+                      editingOffre
+                        ? setEditingOffre({ ...editingOffre, description: e.target.value })
+                        : setNewOffre({ ...newOffre, description: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Département *</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={
+                      editingOffre
+                        ? typeof editingOffre.departement === "object"
+                          ? editingOffre.departement._id
+                          : editingOffre.departement
+                        : newOffre.departement
+                    }
+                    onChange={e =>
+                      editingOffre
+                        ? setEditingOffre({ ...editingOffre, departement: e.target.value })
+                        : setNewOffre({ ...newOffre, departement: e.target.value })
+                    }
+                  >
+                    <option value="">Sélectionner un département</option>
+                    {departementsList.map(d => (
+                      <option key={d._id} value={d._id}>
+                        {d.nom} ({d.code_departement})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Statut *</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={editingOffre?.statut || newOffre.statut}
+                    onChange={e =>
+                      editingOffre
+                        ? setEditingOffre({ ...editingOffre, statut: e.target.value as any })
+                        : setNewOffre({ ...newOffre, statut: e.target.value as any })
+                    }
+                  >
+                    <option value="Ouvert">Ouvert</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Clôturé">Clôturé</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={editingOffre ? cancelEditing : () => setShowModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={editingOffre ? handleUpdateOffre : handleCreateOffre}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  {editingOffre ? "Mettre à jour" : "Créer l'offre"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Candidats */}
+        {showCandidatsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Candidatures - {showCandidatsModal.poste}
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {showCandidatsModal.candidats.length} candidat(s)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCandidatsModal(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                {showCandidatsModal.candidats.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucun candidat pour cette offre.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {showCandidatsModal.candidats.map((candidat) => (
+                      <div key={candidat._id} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">
+                              {candidat.prenom} {candidat.nom}
+                            </h3>
+                            <p className="text-sm text-gray-600">{candidat.email}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBadgeClass(candidat.statutCandidature || "En attente")}`}>
+                                {candidat.statutCandidature || "En attente"}
+                              </span>
+                              {candidat.cvUrl && (
+                                <a
+                                  href={candidat.cvUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                                >
+                                  <Download className="h-3 w-3" />
+                                  Voir CV
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updateCandidatStatus(candidat._id, "Accepté")}
+                              disabled={candidat.statutCandidature === "Accepté" || loadingActions[candidat._id]}
+                              className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {loadingActions[candidat._id] ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
+                              Accepter
+                            </button>
+                            <button
+                              onClick={() => updateCandidatStatus(candidat._id, "Refusé")}
+                              disabled={candidat.statutCandidature === "Refusé" || loadingActions[candidat._id]}
+                              className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {loadingActions[candidat._id] ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                              ) : (
+                                <XCircle className="h-4 w-4" />
+                              )}
+                              Refuser
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end p-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowCandidatsModal(null)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

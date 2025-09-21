@@ -7,7 +7,7 @@ const candidatSchema = new mongoose.Schema({
   cvUrl: { type: String },
   statutCandidature: {
     type: String,
-    enum: ["En attente", "Retenu", "Rejeté"],
+    enum: ["En attente", "Accepté", "Refusé"], // <- corrigé ici
     default: "En attente",
   },
   dateCandidature: { type: Date, default: Date.now },

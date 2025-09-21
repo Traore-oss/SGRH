@@ -402,8 +402,6 @@ const Dashboard: React.FC = () => {
   );
 };
 
-// Composant de gestion du recrutement (RH)
-
 // Composant pour afficher la gestion des employés avec les fonctionnalités complètes
 export const UserManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);

@@ -414,19 +414,19 @@ const HomePage: React.FC = () => {
             {[
               {
                 text: "SGRH a transformé notre gestion RH. Gain de temps considérable et équipe plus productive !",
-                author: "Marie Dupont",
+                author: "Traore Ibrahima sory",
                 role: "DRH - TechCorp",
                 rating: 5
               },
               {
                 text: "Interface intuitive et fonctionnalités complètes. Exactement ce qu'il nous fallait pour évoluer.",
-                author: "Pierre Martin",
+                author: "Karifa Camara",
                 role: "CEO - StartupFast",
                 rating: 5
               },
               {
                 text: "Le support client est exceptionnel. Des solutions rapides et efficaces à chaque problème.",
-                author: "Sophie Leroy",
+                author: "Fode Cisse",
                 role: "Responsable RH - GroupMega",
                 rating: 5
               }

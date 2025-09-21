@@ -6,11 +6,15 @@ const authController = require("../Controller/AuthController");
 router.post("/login", authController.signIn);
 router.get("/logout", authController.logout);
 
+// 🔹 Création RH
+router.post("/signup", authController.createRH); // Nouvelle route pour créer un RH
+
 // 🔹 Gestion utilisateurs
-router.patch('/toggle-active/:id',authController.toggleActive);
+router.patch("/toggle-active/:id", authController.toggleActive);
+
 // 🔹 Mot de passe oublié / réinitialisation
-router.post("/forgot-password", authController.forgotPassword);          // Envoi du mail
+router.post("/forgot-password", authController.forgotPassword);           // Envoi du mail
 router.get("/verify-reset-token/:token", authController.verifyResetToken); // Vérifie si le token est valide
-router.post("/reset-password/:token", authController.resetPassword);     // Réinitialise le mot de passe
+router.post("/reset-password/:token", authController.resetPassword);      // Réinitialise le mot de passe
 
 module.exports = router;

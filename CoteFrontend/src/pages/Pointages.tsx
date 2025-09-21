@@ -304,31 +304,31 @@ const fetchData = async () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-2 sm:py-6 sm:px-4 lg:py-8 lg:px-6 transition-all duration-300 animate-fadeIn">
       {/* En-tête avec horloge animée */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 p-4 bg-white rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-2 md:mb-0 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent text-center md:text-left">
           Gestion des Présences
         </h1>
         <div className="flex items-center space-x-2">
           <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-2 rounded-lg shadow-md animate-pulse">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="font-mono">{time.toLocaleTimeString()}</span>
+            <span className="font-mono text-sm md:text-base">{time.toLocaleTimeString()}</span>
           </div>
         </div>
       </div>
 
       {/* Filtres et contrôles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 p-4 bg-white rounded-xl shadow-md transition-all duration-300">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6 p-4 bg-white rounded-xl shadow-md transition-all duration-300">
         <input 
           type="date" 
           value={filterDate} 
           onChange={e => setFilterDate(e.target.value)} 
-          className="p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300" 
+          className="p-2 md:p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm md:text-base" 
         />
         <select 
           value={filterPeriod} 
           onChange={e => setFilterPeriod(e.target.value)} 
-          className="p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+          className="p-2 md:p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm md:text-base"
         >
           <option value="jour">Jour</option>
           <option value="semaine">Semaine</option>
@@ -337,7 +337,7 @@ const fetchData = async () => {
         <select 
           value={filterStatus} 
           onChange={e => setFilterStatus(e.target.value)} 
-          className="p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+          className="p-2 md:p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm md:text-base"
         >
           <option value="Tous">Tous</option>
           <option value="Présent">Présent</option>
@@ -349,12 +349,12 @@ const fetchData = async () => {
           placeholder="Rechercher..." 
           value={searchTerm} 
           onChange={e => setSearchTerm(e.target.value)} 
-          className="p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300" 
+          className="p-2 md:p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm md:text-base" 
         />
         <button 
           onClick={handleRefresh} 
           disabled={isRefreshing} 
-          className="flex items-center justify-center bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none"
+          className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 md:px-4 md:py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none text-sm md:text-base"
         >
           {isRefreshing ? (
             <>
@@ -366,7 +366,7 @@ const fetchData = async () => {
             </>
           ) : (
             <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Rafraîchir
@@ -376,213 +376,217 @@ const fetchData = async () => {
       </div>
 
       {/* Cartes statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
           <div className="flex items-center">
-            <div className="rounded-full bg-blue-100 p-3 mr-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="rounded-full bg-blue-100 p-2 md:p-3 mr-3 md:mr-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
             <div>
-              <h2 className="text-gray-500 text-sm">Total employés</h2>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <h2 className="text-gray-500 text-xs md:text-sm">Total employés</h2>
+              <p className="text-xl md:text-2xl font-bold text-gray-800">{stats.total}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
           <div className="flex items-center">
-            <div className="rounded-full bg-green-100 p-3 mr-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="rounded-full bg-green-100 p-2 md:p-3 mr-3 md:mr-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <h2 className="text-gray-500 text-sm">Présents</h2>
-              <p className="text-2xl font-bold text-green-600">{stats.present}</p>
+              <h2 className="text-gray-500 text-xs md:text-sm">Présents</h2>
+              <p className="text-xl md:text-2xl font-bold text-green-600">{stats.present}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
           <div className="flex items-center">
-            <div className="rounded-full bg-yellow-100 p-3 mr-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="rounded-full bg-yellow-100 p-2 md:p-3 mr-3 md:mr-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <h2 className="text-gray-500 text-sm">Retards</h2>
-              <p className="text-2xl font-bold text-yellow-500">{stats.retard}</p>
+              <h2 className="text-gray-500 text-xs md:text-sm">Retards</h2>
+              <p className="text-xl md:text-2xl font-bold text-yellow-500">{stats.retard}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105">
           <div className="flex items-center">
-            <div className="rounded-full bg-red-100 p-3 mr-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="rounded-full bg-red-100 p-2 md:p-3 mr-3 md:mr-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
             <div>
-              <h2 className="text-gray-500 text-sm">Absents</h2>
-              <p className="text-2xl font-bold text-red-500">{stats.absent}</p>
+              <h2 className="text-gray-500 text-xs md:text-sm">Absents</h2>
+              <p className="text-xl md:text-2xl font-bold text-red-500">{stats.absent}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Graphiques */}
-      <div className="flex flex-col md:flex-row gap-6 mb-6">
-        <div className="bg-white p-5 rounded-xl shadow-md w-full md:w-1/2 h-80 transition-all duration-300 hover:shadow-lg">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Répartition des présences</h3>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-md w-full md:w-1/2 h-72 md:h-80 transition-all duration-300 hover:shadow-lg">
+          <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 text-center">Répartition des présences</h3>
           <Pie data={pieData} options={pieOptions} />
         </div>
-        <div className="bg-white p-5 rounded-xl shadow-md w-full md:w-1/2 h-80 transition-all duration-300 hover:shadow-lg">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Statistiques des présences</h3>
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-md w-full md:w-1/2 h-72 md:h-80 transition-all duration-300 hover:shadow-lg">
+          <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 text-center">Statistiques des présences</h3>
           <Bar data={barData} options={barOptions} />
         </div>
       </div>
 
       {/* Tableau des présences */}
-  <div className="overflow-x-auto bg-white rounded-xl shadow-md p-5 transition-all duration-300">
-  <h3 className="text-lg font-semibold text-gray-800 mb-4">Liste des employés</h3>
-  <table className="min-w-full border-collapse">
-    <thead>
-      <tr className="bg-gray-100 rounded-lg">
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">
-          Matricule
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Nom
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Prénom
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Statut
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Heure arrivée
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Heure départ
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          Heures travaillées
-        </th>
-        <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">
-          Action
-        </th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-gray-200">
-      {filteredAttendance.map((record, index) => {
-        // Calcul des heures travaillées
-        let heuresTravaillees = "-";
-        if (record.heureArrivee && record.heureDepart) {
-          const arrivee = new Date(`1970-01-01T${record.heureArrivee}`);
-          const depart = new Date(`1970-01-01T${record.heureDepart}`);
-          const diffMs = depart - arrivee; // différence en millisecondes
-          const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-          const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-          heuresTravaillees = `${diffH}h ${diffM}m`;
-        }
+      <div className="overflow-x-auto bg-white rounded-xl shadow-md p-4 md:p-5 transition-all duration-300">
+        <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4">Liste des employés</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100 rounded-lg">
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">
+                  Matricule
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nom
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                  Prénom
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Statut
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                  Heure arrivée
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                  Heure départ
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                  Heures travaillées
+                </th>
+                <th className="p-2 md:p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredAttendance.map((record, index) => {
+                // Calcul des heures travaillées
+                let heuresTravaillees = "-";
+                if (record.heureArrivee && record.heureDepart) {
+                  const arrivee = new Date(`1970-01-01T${record.heureArrivee}`);
+                  const depart = new Date(`1970-01-01T${record.heureDepart}`);
+                  const diffMs = depart - arrivee; // différence en millisecondes
+                  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+                  const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                  heuresTravaillees = `${diffH}h ${diffM}m`;
+                }
 
-        return (
-          <tr
-            key={record.employe._id + record.date}
-            className="hover:bg-blue-50 transition-colors duration-200"
-            style={{ animationDelay: `${index * 0.05}s` }}
-          >
-            <td className="p-3 text-sm text-gray-700">{record.employe.matricule}</td>
-            <td className="p-3 text-sm font-medium text-gray-900">{record.employe.nom}</td>
-            <td className="p-3 text-sm text-gray-700">{record.employe.prenom}</td>
-            <td className="p-3 text-sm">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  record.statut === "Présent"
-                    ? "bg-green-100 text-green-800"
-                    : record.statut === "Retard"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {record.statut}
-              </span>
-            </td>
-            <td className="p-3 text-sm text-gray-700">{record.heureArrivee}</td>
-            <td className="p-3 text-sm text-gray-700">{record.heureDepart}</td>
-            <td className="p-3 text-sm text-gray-700">{heuresTravaillees}</td>
-            <td className="p-3 text-sm">
-              <div className="flex items-center space-x-3">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={record.statut !== "Absent"}
-                    onChange={e => togglePresence(record, e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-                <button
-                  onClick={() => handleSetDeparture(record)}
-                  disabled={record.statut === "Absent"}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${
-                    record.statut === "Absent"
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Départ
-                  </div>
-                </button>
-              </div>
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-</div>
-
+                return (
+                  <tr
+                    key={record.employe._id + record.date}
+                    className="hover:bg-blue-50 transition-colors duration-200"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <td className="p-2 md:p-3 text-xs md:text-sm text-gray-700">{record.employe.matricule}</td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm font-medium text-gray-900">{record.employe.nom}</td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm text-gray-700 hidden sm:table-cell">{record.employe.prenom}</td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          record.statut === "Présent"
+                            ? "bg-green-100 text-green-800"
+                            : record.statut === "Retard"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {record.statut}
+                      </span>
+                    </td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm text-gray-700 hidden md:table-cell">{record.heureArrivee}</td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm text-gray-700 hidden lg:table-cell">{record.heureDepart}</td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm text-gray-700 hidden lg:table-cell">{heuresTravaillees}</td>
+                    <td className="p-2 md:p-3 text-xs md:text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={record.statut !== "Absent"}
+                            onChange={e => togglePresence(record, e.target.checked)}
+                          />
+                          <div className="w-9 h-5 md:w-11 md:h-6 bg-gray-200 peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 md:after:h-5 md:after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <span className="ml-2 text-xs md:text-sm text-gray-700 sm:hidden">
+                            {record.statut !== "Absent" ? "Présent" : "Absent"}
+                          </span>
+                        </label>
+                        <button
+                          onClick={() => handleSetDeparture(record)}
+                          disabled={record.statut === "Absent"}
+                          className={`px-3 py-1 md:px-4 md:py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 text-xs md:text-sm ${
+                            record.statut === "Absent"
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-3 w-3 md:h-4 md:w-4 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                              />
+                            </svg>
+                            Départ
+                          </div>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Notification */}
       {notification && (
         <div
-          className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center animate-slideInRight ${
+          className={`fixed bottom-4 right-4 p-3 md:p-4 rounded-lg shadow-lg flex items-center animate-slideInRight z-50 max-w-xs md:max-w-sm ${
             notification.type === "success" 
               ? "bg-green-500 text-white" 
               : "bg-red-500 text-white"
           }`}
         >
           {notification.type === "success" ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           )}
-          {notification.message}
+          <span className="text-sm md:text-base">{notification.message}</span>
         </div>
       )}
 

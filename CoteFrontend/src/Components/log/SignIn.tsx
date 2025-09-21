@@ -15,21 +15,16 @@ const SignIn: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Effet pour nettoyer les messages après un délai
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => {
-        setError('');
-      }, 5000);
+      const timer = setTimeout(() => setError(''), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
 
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => {
-        setSuccess('');
-      }, 3000);
+      const timer = setTimeout(() => setSuccess(''), 3000);
       return () => clearTimeout(timer);
     }
   }, [success]);
@@ -40,7 +35,6 @@ const SignIn: React.FC = () => {
     setError('');
     setSuccess('');
 
-    // Validation basique
     if (!email || !password) {
       setError('Veuillez remplir tous les champs');
       setLoading(false);
@@ -56,26 +50,15 @@ const SignIn: React.FC = () => {
     try {
       const userData = await login(email, password);
       if (!userData) throw new Error('Utilisateur introuvable');
-
       setSuccess('Connexion réussie!');
-      
-      // Petite pause pour montrer le message de succès
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Redirection selon rôle
       const role = userData.role;
       switch (role) {
-        case 'Admin':
-          navigate('/admin-dashboard');
-          break;
-        case 'RH':
-          navigate('/hr-dashboard');
-          break;
-        case 'Employe':
-          navigate('/employee-dashboard');
-          break;
-        default:
-          navigate('/');
+        case 'Admin': navigate('/admin-dashboard'); break;
+        case 'RH': navigate('/hr-dashboard'); break;
+        case 'Employe': navigate('/employee-dashboard'); break;
+        default: navigate('/'); break;
       }
     } catch (err: any) {
       setError(err.message || 'Erreur de connexion. Veuillez vérifier vos identifiants.');
@@ -87,16 +70,14 @@ const SignIn: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-4 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
-        {/* Carte principale - réduite en hauteur */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          {/* En-tête avec logo agrandi */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 py-4 px-6 text-center">
             <div className="flex justify-center mb-2">
               <div className="bg-white p-3 rounded-full shadow-lg">
                 <img 
                   src="../../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" 
                   alt="Logo SGRH" 
-                  className="h-20 w-auto mx-auto" // Logo agrandi
+                  className="h-20 w-auto mx-auto"
                 />
               </div>
             </div>
@@ -104,9 +85,7 @@ const SignIn: React.FC = () => {
             <p className="text-blue-100 text-xs mt-1">Système de Gestion des Ressources Humaines</p>
           </div>
 
-          {/* Formulaire avec espacement réduit */}
           <form className="px-6 py-4 space-y-4" onSubmit={handleSubmit}>
-            {/* Messages d'alerte */}
             {error && (
               <div className="animate-fadeIn bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg flex items-center text-xs">
                 <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -122,16 +101,8 @@ const SignIn: React.FC = () => {
             )}
 
             <div className="space-y-4">
-              {/* Champ Email */}
               <div className="relative">
-                <label 
-                  htmlFor="email" 
-                  className={`absolute left-3 transition-all duration-200 ${
-                    isFocused.email || email 
-                      ? 'top-0.5 text-xs text-blue-600 bg-white px-1' 
-                      : 'top-2.5 text-xs text-gray-500'
-                  }`}
-                >
+                <label htmlFor="email" className={`absolute left-3 transition-all duration-200 ${isFocused.email || email ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
                   Adresse email
                 </label>
                 <div className="relative mt-2">
@@ -151,16 +122,8 @@ const SignIn: React.FC = () => {
                 </div>
               </div>
 
-              {/* Champ Mot de passe */}
               <div className="relative">
-                <label 
-                  htmlFor="password" 
-                  className={`absolute left-3 transition-all duration-200 ${
-                    isFocused.password || password 
-                      ? 'top-0.5 text-xs text-blue-600 bg-white px-1' 
-                      : 'top-2.5 text-xs text-gray-500'
-                  }`}
-                >
+                <label htmlFor="password" className={`absolute left-3 transition-all duration-200 ${isFocused.password || password ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
                   Mot de passe
                 </label>
                 <div className="relative mt-2">
@@ -182,27 +145,18 @@ const SignIn: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" /> : <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" />}
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Lien mot de passe oublié */}
             <div className="text-right">
-              <Link 
-                to="/forgot-password" 
-                className="text-xs text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center"
-              >
+              <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center">
                 Mot de passe oublié ?
               </Link>
             </div>
 
-            {/* Bouton de connexion */}
             <button
               type="submit"
               disabled={loading}
@@ -216,9 +170,7 @@ const SignIn: React.FC = () => {
                   </svg>
                   Connexion...
                 </>
-              ) : (
-                'Se connecter'
-              )}
+              ) : 'Se connecter'}
             </button>
 
             {/* Séparateur */}
@@ -231,15 +183,23 @@ const SignIn: React.FC = () => {
               </div>
             </div>
 
-            {/* Lien vers contact admin */}
-            <div className="text-center">
+            {/* Bouton Créer RH */}
+            <div className="mt-3 text-center">
+              <Link
+                to="/signup-rh"
+                className="inline-block px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-md"
+              >
+                Créer un compte RH
+              </Link>
+            </div>
+
+            <div className="text-center mt-2">
               <p className="text-xs text-gray-600">
                 Contactez votre <span className="text-blue-600 font-medium">administrateur</span> pour obtenir vos identifiants
               </p>
             </div>
           </form>
 
-          {/* Pied de page */}
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>© 2025 SGRH</span>
@@ -251,7 +211,6 @@ const SignIn: React.FC = () => {
           </div>
         </div>
 
-        {/* Version responsive */}
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-500">
             Optimisé pour tous les appareils • v2.1.0
@@ -264,9 +223,7 @@ const SignIn: React.FC = () => {
           from { opacity: 0; transform: translateY(-10px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
       `}</style>
     </div>
   );

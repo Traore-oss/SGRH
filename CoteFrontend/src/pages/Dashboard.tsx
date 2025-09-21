@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* Dashboard.tsx */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import { 
   Users, 
@@ -7,8 +6,6 @@ import {
   Clock, 
   CheckCircle,
   UserPlus,
-  TrendingUp,
-  TrendingDown,
   MoreHorizontal,
   X,
   Plus,
@@ -19,33 +16,45 @@ import {
 import { StatsCard } from '../commons/StatsCard';
 import { Chart } from '../commons/Chart';
 import { toast } from 'react-toastify';
-
-// ✅ Correct imports
 import { getEmployees, type Employee } from '../Components/ServiceEmployer';
+import { getDemandesConge, type Conge } from '../Components/CongesService';
 import { EmployeeForm } from '../forms/EmployeeForm';
 
 export const Dashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [conges, setConges] = useState<Conge[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
 
+  // 🔹 Récupérer les employés
   const fetchEmployees = async () => {
     try {
       setLoading(true);
       const data = await getEmployees();
       setEmployees(data);
-    } catch (error) {
+    } catch  {
       toast.error("Erreur lors de la récupération des employés");
     } finally {
       setLoading(false);
     }
   };
 
+  // 🔹 Récupérer les congés
+  const fetchConges = async () => {
+    try {
+      const data = await getDemandesConge();
+      setConges(data);
+    } catch{
+      toast.error("Erreur lors de la récupération des congés");
+    }
+  };
+
   useEffect(() => {
     fetchEmployees();
+    fetchConges();
   }, []);
 
   const handleAddEmployee = () => {
@@ -61,6 +70,7 @@ export const Dashboard: React.FC = () => {
   const handleFormSubmit = () => {
     setShowForm(false);
     fetchEmployees();
+    fetchConges();
     toast.success(selectedEmployee ? "Employé modifié avec succès" : "Employé ajouté avec succès");
   };
 
@@ -73,19 +83,29 @@ export const Dashboard: React.FC = () => {
     
     const matchesDepartment = 
       filterDepartment === 'all' || 
-      emp.departement?.toLowerCase() === filterDepartment.toLowerCase();
+      emp.departement?.nom?.toLowerCase() === filterDepartment.toLowerCase();
     
     return matchesSearch && matchesDepartment;
   });
 
-  // Obtenir les départements uniques pour le filtre
-  const departments = [...new Set(employees.map(emp => emp.departement).filter(Boolean))];
+  // Départements uniques
+  const departments = [...new Set(employees.map(emp => emp.departement?.nom).filter(Boolean))];
 
-  // Statistiques calculées dynamiquement
+  // Statistiques dynamiques
   const totalEmployees = employees.length;
   const presenceRate = employees.length > 0 
-    ? ((employees.filter(emp => emp.present).length / employees.length) * 100).toFixed(1)
+    ? ((employees.filter(emp => (emp as any).present).length / employees.length) * 100).toFixed(1)
     : '0.0';
+
+  const totalConges = conges.length;
+  const congesEnAttente = conges.filter(c => c.etat === 'en attente').length;
+
+  // Données pour le mini-graph des congés
+  const congesStatsData = [
+    { name: 'En attente', value: conges.filter(c => c.etat === 'en attente').length },
+    { name: 'Approuvé', value: conges.filter(c => c.etat === 'approuvé').length },
+    { name: 'Refusé', value: conges.filter(c => c.etat === 'refusé').length },
+  ];
 
   const stats = [
     { 
@@ -99,12 +119,13 @@ export const Dashboard: React.FC = () => {
     },
     { 
       title: 'Demandes de Congé', 
-      value: '18', 
-      change: '+3 nouvelles', 
+      value: totalConges.toString(), 
+      change: `+${congesEnAttente} nouvelles`, 
       trend: 'neutral' as const, 
       icon: Calendar, 
       color: 'yellow' as const,
-      description: 'En attente de validation'
+      description: 'En attente de validation',
+      miniChart: congesStatsData
     },
     { 
       title: 'Taux de Présence', 
@@ -126,7 +147,7 @@ export const Dashboard: React.FC = () => {
     }
   ];
 
-  // Données pour les graphiques
+  // Graphiques principaux
   const workforceData = [
     { month: 'Jan', value: 235 },
     { month: 'Fév', value: 238 },
@@ -139,7 +160,7 @@ export const Dashboard: React.FC = () => {
   const departmentData = employees.length > 0
     ? Object.entries(
         employees.reduce((acc, emp) => {
-          const dept = emp.departement || 'Non assigné';
+          const dept = emp.departement?.nom || 'Non assigné';
           acc[dept] = (acc[dept] || 0) + 1;
           return acc;
         }, {} as Record<string, number>)
@@ -154,19 +175,12 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      {/* En-tête */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
           <p className="text-gray-600">Bienvenue dans votre espace de gestion des ressources humaines</p>
         </div>
-        <button
-          onClick={handleAddEmployee}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          <span>Nouvel employé</span>
-        </button>
       </div>
 
       {/* Stats Cards */}
@@ -176,16 +190,16 @@ export const Dashboard: React.FC = () => {
             key={index} 
             {...stat} 
             loading={loading}
+            miniChart={stat.miniChart} // Mini-graph intégré pour les congés
           />
         ))}
       </div>
 
+      {/* Employees Recent & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activities */}
         <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <h3 className="text-lg font-semibold text-gray-800">Employés Récents</h3>
-            
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -215,7 +229,6 @@ export const Dashboard: React.FC = () => {
           
           <div className="space-y-3">
             {loading ? (
-              // Squelette de chargement
               Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-100 animate-pulse">
                   <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
@@ -246,7 +259,7 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     {emp.departement && (
                       <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                        {emp.departement}
+                        {emp.departement.nom}
                       </span>
                     )}
                     <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity">
@@ -309,7 +322,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Congés cette semaine</span>
-                <span className="font-medium">7</span>
+                <span className="font-medium">{congesEnAttente}</span>
               </div>
             </div>
           </div>

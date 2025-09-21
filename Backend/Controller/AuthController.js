@@ -1,10 +1,73 @@
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
-const Utilisateur = require("../Models/usersModel"); // Assure-toi que c'est le bon chemin
+const Utilisateur = require("../Models/usersModel");
 const { createToken, maxAge } = require("../Utile/jwt");
 
-// Connexion
+// ----------------- SIGNUP RH -----------------
+const createRH = async (req, res) => {
+  try {
+    const { nom, prenom, email, genre, password, nomEntreprise } = req.body;
+
+    // 🔹 Vérification des champs obligatoires
+    if (!nom || !prenom || !email || !password || !genre) {
+      return res.status(400).json({ message: "Champs requis manquants." });
+    }
+
+    // 🔹 Vérifie si l'utilisateur existe déjà
+    const existUser = await Utilisateur.findOne({ email });
+    if (existUser) return res.status(400).json({ message: "Cet email est déjà utilisé." });
+
+    // 🔹 Création du RH (le mot de passe sera hashé automatiquement par le hook pre "save")
+    const newRH = new Utilisateur({
+      nom,
+      prenom,
+      email,
+      genre,
+      password, // ⚡ en clair ici, pas de double hash
+      role: "RH",
+      isActive: true,
+      rh: {
+        nomEntreprise: nomEntreprise || ""
+      }
+    });
+
+    await newRH.save();
+
+    // 🔹 Génération du token JWT pour connexion immédiate
+    const token = createToken(newRH._id);
+
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      maxAge: maxAge * 1000,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    // 🔹 Réponse JSON avec info RH
+    res.status(201).json({
+      message: "RH créé avec succès ✅",
+      rhInfo: {
+        _id: newRH._id,
+        nom: newRH.nom,
+        prenom: newRH.prenom,
+        email: newRH.email,
+        genre: newRH.genre,
+        role: newRH.role,
+        nomEntreprise: newRH.rh.nomEntreprise,
+        token
+      }
+    });
+
+  } catch (err) {
+    console.error("Erreur createRH:", err.message);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+
+
+// ----------------- SIGNIN -----------------
 const signIn = async (req, res) => {
   const { email, password } = req.body;
 
@@ -12,7 +75,6 @@ const signIn = async (req, res) => {
     const user = await Utilisateur.findOne({ email }).select("+password");
     if (!user) return res.status(400).json({ error: "Utilisateur non trouvé" });
 
-    // Vérification si l'utilisateur est actif
     if (!user.isActive) {
       return res.status(403).json({ error: "Compte désactivé, contactez l'administrateur" });
     }
@@ -36,26 +98,20 @@ const signIn = async (req, res) => {
   }
 };
 
-
-// Déconnexion
+// ----------------- LOGOUT -----------------
 const logout = (req, res) => {
   res.cookie("jwt", "", { maxAge: 1 });
   res.status(200).json({ message: "Déconnexion réussie" });
 };
 
-// 📌 Toggle activation d'un utilisateur
-// 📌 Toggle activation d'un utilisateur (corrigé)
+// ----------------- TOGGLE ACTIVE -----------------
 const toggleActive = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // On récupère l'utilisateur ciblé
     const utilisateur = await Utilisateur.findById(id);
     if (!utilisateur) return res.status(404).json({ message: "Utilisateur non trouvé" });
 
-    // Inverse seulement son état
     utilisateur.isActive = !utilisateur.isActive;
-
     await utilisateur.save();
 
     return res.status(200).json({
@@ -68,13 +124,7 @@ const toggleActive = async (req, res) => {
   }
 };
 
-
-module.exports = {
-  toggleActive,
-};
-
-
-// Mot de passe oublié
+// ----------------- MOT DE PASSE OUBLIÉ -----------------
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -111,7 +161,7 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// Réinitialiser le mot de passe
+// ----------------- RESET PASSWORD -----------------
 const resetPassword = async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
@@ -138,7 +188,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Vérifier le token de réinitialisation
+// ----------------- VERIFY RESET TOKEN -----------------
 const verifyResetToken = async (req, res) => {
   const { token } = req.params;
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
@@ -158,4 +208,12 @@ const verifyResetToken = async (req, res) => {
   }
 };
 
-module.exports = { signIn, logout, toggleActive, forgotPassword, resetPassword, verifyResetToken };
+module.exports = { 
+  createRH,
+  signIn, 
+  logout, 
+  toggleActive, 
+  forgotPassword, 
+  resetPassword, 
+  verifyResetToken 
+};

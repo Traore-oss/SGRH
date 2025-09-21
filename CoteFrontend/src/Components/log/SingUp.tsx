@@ -1,143 +1,302 @@
-// import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../api/axios.config';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { useState } from 'react';
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
+import { User, Mail, Lock, Eye, EyeOff, Building, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 
-const SignUpAdmin: React.FC = () => {
-  const navigate = useNavigate();
+const CreateRHForm = () => {
   const [formData, setFormData] = useState({
-    nom: '',
-    prenom: '',
-    email: '',
-    telephone: '',
-    adresse: '',
-    genre: 'Homme',
-    password: '',
-    confirmPassword: '',
-    nomEntreprise: '',
-    ville: '',
-    codePostal: '',
-    secteur: '',
-    siteWeb: ''
+    nom: "",
+    prenom: "",
+    email: "",
+    genre: "",
+    password: "",
+    nomEntreprise: "",
   });
 
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isFocused, setIsFocused] = useState({
+    nom: false,
+    prenom: false,
+    email: false,
+    password: false,
+    nomEntreprise: false
+  });
+  
+  const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const validateEmail = (email: string) =>
-    /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(email);
+  const handleFocus = (field: string) => {
+    setIsFocused({ ...isFocused, [field]: true });
+  };
 
-  const validatePhone = (phone: string) =>
-    /^[0-9]{8,15}$/.test(phone.replace(/\D/g, ''));
-
-  const resetForm = () => {
-    setFormData({
-      nom: '',
-      prenom: '',
-      email: '',
-      telephone: '',
-      adresse: '',
-      genre: 'Homme',
-      password: '',
-      confirmPassword: '',
-      nomEntreprise: '',
-      ville: '',
-      codePostal: '',
-      secteur: '',
-      siteWeb: ''
-    });
+  const handleBlur = (field: string) => {
+    setIsFocused({ ...isFocused, [field]: false });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    // Validation mots de passe
-    if (formData.password !== formData.confirmPassword) return setError('Les mots de passe ne correspondent pas');
-    if (formData.password.length < 6) return setError('Le mot de passe doit contenir au moins 6 caractères');
-
-    // Validation email / téléphone
-    if (!validateEmail(formData.email)) return setError('Email invalide');
-    if (!validatePhone(formData.telephone)) return setError('Téléphone invalide');
-
-    // Champs obligatoires
-    const requiredFields = ['nom', 'prenom', 'email', 'telephone', 'adresse', 'genre', 'password', 'nomEntreprise'];
-    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
-    if (missingFields.length > 0) return setError(`Champs obligatoires manquants: ${missingFields.join(', ')}`);
-
+    setMessage("");
+    setError("");
     setLoading(true);
+
     try {
-      const response = await api.post('/users/signUp', formData);
+      const response = await axios.post(
+        "http://localhost:8000/api/Auth/signup",
+        formData,
+        { withCredentials: true }
+      );
 
-      if (response.status === 201) {
-        // Sauvegarder token et user dans localStorage
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-
-        toast.success('Compte administrateur créé avec succès !', { position: 'top-center' });
-
-        resetForm();
-
-        // Redirection après 1.5s pour laisser le toast s'afficher
-        setTimeout(() => navigate('/admin'), 1500);
-      } else {
-        setError(response.data.error || 'Une erreur est survenue');
-      }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setMessage(`RH créé avec succès ! Nom de l'entreprise : ${response.data.rhInfo.nomEntreprise}`);
+      setFormData({
+        nom: "",
+        prenom: "",
+        email: "",
+        genre: "",
+        password: "",
+        nomEntreprise: "",
+      });
+      
+      // Redirection après succès
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Erreur de connexion au serveur');
+      setError(err.response?.data?.message || "Erreur lors de la création du compte RH");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md mt-10">
-      <ToastContainer />
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Créer un compte administrateur</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-4 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 py-4 px-6 text-center">
+            <div className="flex justify-center mb-2">
+              <div className="bg-white p-3 rounded-full shadow-lg">
+                <img 
+                  src="../../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" 
+                  alt="Logo SGRH" 
+                  className="h-20 w-auto mx-auto"
+                />
+              </div>
+            </div>
+            <h2 className="text-lg font-bold text-white mt-2">Création de compte RH</h2>
+            <p className="text-blue-100 text-xs mt-1">Système de Gestion des Ressources Humaines</p>
+          </div>
 
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+          <form className="px-6 py-4 space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div className="animate-fadeIn bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg flex items-center text-xs">
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" name="nom" placeholder="Nom" value={formData.nom} onChange={handleChange} className="border p-2 rounded" required />
-          <input type="text" name="prenom" placeholder="Prénom" value={formData.prenom} onChange={handleChange} className="border p-2 rounded" required />
+            {message && (
+              <div className="animate-fadeIn bg-green-50 border border-green-200 text-green-600 px-3 py-2 rounded-lg flex items-center text-xs">
+                <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <label htmlFor="prenom" className={`absolute left-3 transition-all duration-200 ${isFocused.prenom || formData.prenom ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
+                  Prénom
+                </label>
+                <div className="relative mt-2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className={`h-4 w-4 ${isFocused.prenom ? 'text-blue-500' : 'text-gray-400'} transition-colors`} />
+                  </div>
+                  <input
+                    id="prenom"
+                    name="prenom"
+                    type="text"
+                    required
+                    className="block w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={formData.prenom}
+                    onChange={handleChange}
+                    onFocus={() => handleFocus("prenom")}
+                    onBlur={() => handleBlur("prenom")}
+                  />
+                </div>
+              </div>
+
+              <div className="relative">
+                <label htmlFor="nom" className={`absolute left-3 transition-all duration-200 ${isFocused.nom || formData.nom ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
+                  Nom
+                </label>
+                <div className="relative mt-2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className={`h-4 w-4 ${isFocused.nom ? 'text-blue-500' : 'text-gray-400'} transition-colors`} />
+                  </div>
+                  <input
+                    id="nom"
+                    name="nom"
+                    type="text"
+                    required
+                    className="block w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={formData.nom}
+                    onChange={handleChange}
+                    onFocus={() => handleFocus("nom")}
+                    onBlur={() => handleBlur("nom")}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <label htmlFor="email" className={`absolute left-3 transition-all duration-200 ${isFocused.email || formData.email ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
+                Adresse email
+              </label>
+              <div className="relative mt-2">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className={`h-4 w-4 ${isFocused.email ? 'text-blue-500' : 'text-gray-400'} transition-colors`} />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  className="block w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onFocus={() => handleFocus("email")}
+                  onBlur={() => handleBlur("email")}
+                />
+              </div>
+            </div>
+
+            <div className="relative">
+              <label htmlFor="genre" className="block text-xs font-medium text-gray-700 mb-1">
+                Genre
+              </label>
+              <select
+                id="genre"
+                name="genre"
+                required
+                className="block w-full p-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                value={formData.genre}
+                onChange={handleChange}
+              >
+                <option value="">Sélectionner le genre</option>
+                <option value="Homme">Homme</option>
+                <option value="Femme">Femme</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <label htmlFor="password" className={`absolute left-3 transition-all duration-200 ${isFocused.password || formData.password ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
+                Mot de passe
+              </label>
+              <div className="relative mt-2">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className={`h-4 w-4 ${isFocused.password ? 'text-blue-500' : 'text-gray-400'} transition-colors`} />
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="block w-full pl-10 pr-10 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onFocus={() => handleFocus("password")}
+                  onBlur={() => handleBlur("password")}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" /> : <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <label htmlFor="nomEntreprise" className={`absolute left-3 transition-all duration-200 ${isFocused.nomEntreprise || formData.nomEntreprise ? 'top-0.5 text-xs text-blue-600 bg-white px-1' : 'top-2.5 text-xs text-gray-500'}`}>
+                Nom de l'entreprise
+              </label>
+              <div className="relative mt-2">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Building className={`h-4 w-4 ${isFocused.nomEntreprise ? 'text-blue-500' : 'text-gray-400'} transition-colors`} />
+                </div>
+                <input
+                  id="nomEntreprise"
+                  name="nomEntreprise"
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  value={formData.nomEntreprise}
+                  onChange={handleChange}
+                  onFocus={() => handleFocus("nomEntreprise")}
+                  onBlur={() => handleBlur("nomEntreprise")}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 px-4 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Création en cours...
+                </>
+              ) : 'Créer le compte RH'}
+            </button>
+
+            <div className="text-center mt-3">
+              <Link
+                to="/login"
+                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Retour à la connexion
+              </Link>
+            </div>
+          </form>
+
+          <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>© 2025 SGRH</span>
+              <div className="flex space-x-3">
+                <a href="#" className="hover:text-blue-600 transition-colors">Confidentialité</a>
+                <a href="#" className="hover:text-blue-600 transition-colors">Conditions</a>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <select name="genre" value={formData.genre} onChange={handleChange} className="border p-2 rounded w-full">
-          <option value="Homme">Homme</option>
-          <option value="Femme">Femme</option>
-          <option value="Autre">Autre</option>
-        </select>
-
-        <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className="border p-2 rounded w-full" required />
-        <input type="tel" name="telephone" placeholder="Téléphone" value={formData.telephone} onChange={handleChange} className="border p-2 rounded w-full" required />
-        <input type="text" name="adresse" placeholder="Adresse" value={formData.adresse} onChange={handleChange} className="border p-2 rounded w-full" required />
-
-        <input type="text" name="nomEntreprise" placeholder="Nom de l'entreprise" value={formData.nomEntreprise} onChange={handleChange} className="border p-2 rounded w-full" required />
-        <input type="text" name="ville" placeholder="Ville" value={formData.ville} onChange={handleChange} className="border p-2 rounded w-full" />
-        <input type="text" name="codePostal" placeholder="Code Postal" value={formData.codePostal} onChange={handleChange} className="border p-2 rounded w-full" />
-        <input type="text" name="secteur" placeholder="Secteur" value={formData.secteur} onChange={handleChange} className="border p-2 rounded w-full" />
-        <input type="text" name="siteWeb" placeholder="Site Web" value={formData.siteWeb} onChange={handleChange} className="border p-2 rounded w-full" />
-
-        <input type="password" name="password" placeholder="Mot de passe" value={formData.password} onChange={handleChange} className="border p-2 rounded w-full" required />
-        <input type="password" name="confirmPassword" placeholder="Confirmer mot de passe" value={formData.confirmPassword} onChange={handleChange} className="border p-2 rounded w-full" required />
-
-        <div className="flex justify-between pt-4">
-          <button type="button" onClick={() => { resetForm(); navigate('/'); }} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Annuler</button>
-          <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            {loading ? 'Création...' : 'S’inscrire'}
-          </button>
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-500">
+            Optimisé pour tous les appareils • v2.1.0
+          </p>
         </div>
-      </form>
+      </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+      `}</style>
     </div>
   );
 };
 
-export default SignUpAdmin;
+export default CreateRHForm;

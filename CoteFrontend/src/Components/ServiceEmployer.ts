@@ -9,6 +9,7 @@ export interface Departement {
 }
 
 export interface Employee {
+  actif: boolean;
   _id: string;
   matricule?: string;
   nom: string;

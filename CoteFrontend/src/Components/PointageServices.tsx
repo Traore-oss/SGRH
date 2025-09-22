@@ -82,3 +82,19 @@ export const setDeparture = async (userId: string, date: string): Promise<boolea
     return false;
   }
 };
+// 🔹 Nouvelle fonction pour récupérer tous les pointages d’un mois
+export const getAttendancesByMonth = async (year: string, month: string) => {
+  try {
+    const startDate = `${year}-${month}-01`;
+    const endDate = `${year}-${month}-31`;
+    const res = await axios.get(`${API_BASE}/`, {
+      params: { startDate, endDate },
+      headers: getAuthHeaders(),
+      withCredentials: true,
+    });
+    return res.data || [];
+  } catch (error: any) {
+    console.error("Erreur getAttendancesByMonth:", error.response?.data || error.message);
+    return [];
+  }
+};

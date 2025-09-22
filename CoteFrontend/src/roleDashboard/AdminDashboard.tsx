@@ -14,7 +14,7 @@ import { CongesManager } from '../pages/Conges';
 import { Departments } from '../pages/Departement';
 import { PerformanceEmployer } from '../pages/Performance';
 import { Reports } from '../pages/Rapport';
-import Salaire from "../pages/Salaire";
+import Salaire from "../pages/PaiementPage";
 import SuiviFormations from "../pages/Formation";
 import { EmployeeForm } from '../forms/EmployeeForm';
 import { type Key, type ReactElement, type JSXElementConstructor, type ReactNode, type ReactPortal, useState, useEffect } from 'react';

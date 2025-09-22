@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
 import axios from "axios";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Plus, Eye, Edit, Lock, Filter, ChevronDown, Search, Users, Building2, FileText, Calendar, Clock, Menu, LogOut, Bell, Heart, UserPlus, TrendingUp } from "lucide-react";
+import { User, Plus, Eye, Edit, Lock, Filter, ChevronDown, Search, Users, Building2, FileText, Calendar, Clock, Menu, LogOut, Bell, Heart, UserPlus, TrendingUp, X } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
@@ -21,6 +22,7 @@ import { Reports } from "../pages/Rapport";
 import SuiviFormations from "../pages/Formation"
 import Recrutement from "../pages/OffreEmploi"
 import { toggleEmployeeActive } from "../Components/ServiceEmployer";
+import PaiementPage from "../pages/PaiementPage";
 
 // Configuration de l'API
 const API_BASE = "http://localhost:8000/api";
@@ -133,20 +135,20 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, delay = 0, trend }) => (
   <div 
-    className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 animate-fadeInUp"
+    className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-200 animate-fadeInUp"
     style={{ animationDelay: `${delay}ms` }}
   >
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+        <p className="text-xs md:text-sm font-medium text-gray-600">{title}</p>
+        <p className="text-xl md:text-2xl font-bold text-gray-900 mt-1">{value}</p>
         {trend && (
           <p className={`text-xs mt-1 ${trend.isPositive ? "text-green-600" : "text-red-600"}`}>
             {trend.isPositive ? "↑" : "↓"} {Math.abs(trend.value)}% depuis le mois dernier
           </p>
         )}
       </div>
-      <div className={`p-3 rounded-lg ${color}`}>{icon}</div>
+      <div className={`p-2 md:p-3 rounded-lg ${color}`}>{icon}</div>
     </div>
   </div>
 );
@@ -177,6 +179,7 @@ type HRView =
   | "performance"
   | "formation"
   |  "CongesManager"
+  |  "PaiementPage"
 
 const hrMenuItems = [
   { id: "dashboard", label: "Tableau de Bord", icon: Heart },
@@ -187,7 +190,7 @@ const hrMenuItems = [
    { id: "Recrutement", label: " Gestion des Recurtements", icon: UserPlus },
   { id: "performance", label: "Gestion Performances", icon: TrendingUp },
   { id: "formation", label: "Gestion des Formations", icon: FileText },
-  // { id: "reports", label: "Rapports RH", icon: FileText },
+  { id: "PaiementPage", label: "Gestion des Paiement", icon: FileText },
 ];
 
 // Composant Dashboard
@@ -309,40 +312,40 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Cartes de statistiques avec animations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard 
           title="Total Employés" 
           value={stats.totalEmployees} 
-          icon={<Users className="h-6 w-6 text-white" />} 
+          icon={<Users className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
           color="bg-blue-500" 
           delay={0}
         />
         <StatCard 
           title="Employés Actifs" 
           value={stats.activeEmployees} 
-          icon={<User className="h-6 w-6 text-white" />} 
+          icon={<User className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
           color="bg-green-500" 
           delay={100}
         />
         <StatCard 
           title="Total Congés" 
           value={stats.totalLeaves} 
-          icon={<Calendar className="h-6 w-6 text-white" />} 
+          icon={<Calendar className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
           color="bg-purple-500" 
           delay={200}
         />
         <StatCard 
           title="En Congé Actuel" 
           value={stats.onLeave} 
-          icon={<Clock className="h-6 w-6 text-white" />} 
+          icon={<Clock className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
           color="bg-yellow-500" 
           delay={300}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Diagramme circulaire pour la présence */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp" style={{ animationDelay: '400ms' }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 animate-fadeInUp" style={{ animationDelay: '400ms' }}>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Présence des Employés</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -373,7 +376,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Calendrier des congés */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp" style={{ animationDelay: '500ms' }}>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 animate-fadeInUp" style={{ animationDelay: '500ms' }}>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Calendrier des Congés</h3>
           <div className="h-64">
             <BigCalendar
@@ -451,25 +454,6 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
     toast.error(err.message || "Impossible de changer l'état de l'utilisateur.");
   }
 };
-
-
-  const calculateSeniority = (dateEmbauche: string): string => {
-    if (!dateEmbauche) return "Non défini";
-    const embauche = new Date(dateEmbauche);
-    const maintenant = new Date();
-    const diffTime = Math.abs(maintenant.getTime() - embauche.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const years = Math.floor(diffDays / 365);
-    const months = Math.floor((diffDays % 365) / 30);
-    if (years > 0) {
-      return `${years} an${years > 1 ? "s" : ""} ${months > 0 ? `et ${months} mois` : ""}`;
-    } else if (months > 0) {
-      return `${months} mois`;
-    } else {
-      return `${diffDays} jour${diffDays > 1 ? "s" : ""}`;
-    }
-  };
-
   // Statistiques
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter(e => e.isActive).length;
@@ -522,24 +506,24 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Cartes de statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Employés" value={totalEmployees} icon={<Users className="h-6 w-6 text-white" />} color="bg-blue-500" delay={0} />
-        <StatCard title="Employés Actifs" value={activeEmployees} icon={<User className="h-6 w-6 text-white" />} color="bg-green-500" delay={100} />
-        <StatCard title="Employés Inactifs" value={inactiveEmployees} icon={<User className="h-6 w-6 text-white" />} color="bg-red-500" delay={200} />
-        <StatCard title="Départements" value={departments.length} icon={<Building2 className="h-6 w-6 text-white" />} color="bg-purple-500" delay={300} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <StatCard title="Total Employés" value={totalEmployees} icon={<Users className="h-5 w-5 md:h-6 md:w-6 text-white" />} color="bg-blue-500" delay={0} />
+        <StatCard title="Employés Actifs" value={activeEmployees} icon={<User className="h-5 w-5 md:h-6 md:w-6 text-white" />} color="bg-green-500" delay={100} />
+        <StatCard title="Employés Inactifs" value={inactiveEmployees} icon={<User className="h-5 w-5 md:h-6 md:w-6 text-white" />} color="bg-red-500" delay={200} />
+        {/* <StatCard title="Départements" value={departments.length} icon={<Building2 className="h-5 w-5 md:h-6 md:w-6 text-white" />} color="bg-purple-500" delay={300} /> */}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp">
-        <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 animate-fadeInUp">
+        <div className="flex flex-col lg:flex-row justify-between gap-3 md:gap-4 mb-4 md:mb-6">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4 w-full lg:w-auto">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher un utilisateur..."
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 focus:shadow-md"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 focus:shadow-md text-sm md:text-base"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
@@ -547,7 +531,7 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative">
                 <button 
-                  className="inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full hover-lift"
+                  className="inline-flex items-center space-x-2 px-3 md:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full hover-lift text-sm md:text-base"
                   onClick={() => setIsFilterOpen(!isFilterOpen)}
                 >
                   <Filter className="h-4 w-4" />
@@ -604,7 +588,7 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
             </div>
           </div>
           <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 w-full lg:w-auto hover-lift animate-pulse"
+            className="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 w-full lg:w-auto hover-lift animate-pulse text-sm md:text-base"
             onClick={() => setShowAddModal(true)}
           >
             <Plus className="h-4 w-4" />
@@ -621,14 +605,13 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
             <table className="w-full table-auto">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employé</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Contact</th>
-                  {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Poste</th> */}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Département</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Salaire</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Rôle</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employé</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Contact</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Département</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Salaire</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Rôle</th>
+                  <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -638,18 +621,18 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                     className="hover:bg-gray-50 transition-all duration-300 animate-fadeInUp"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 md:px-4 md:py-3">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center transition-transform hover:scale-110">
-                          <span className="text-white font-medium text-sm">
+                        <div className="flex-shrink-0 h-8 w-8 md:h-10 md:w-10 bg-blue-500 rounded-full flex items-center justify-center transition-transform hover:scale-110">
+                          <span className="text-white font-medium text-xs md:text-sm">
                             {u.prenom?.[0]}{u.nom?.[0]}
                           </span>
                         </div>
-                        <div className="ml-3">
+                        <div className="ml-2 md:ml-3">
                           <div className="text-sm font-medium text-gray-900">
                             {u.prenom} {u.nom}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs text-gray-500">
                             {u.matricule || '-'}
                           </div>
                           <div className="text-xs text-gray-400 lg:hidden">
@@ -658,47 +641,44 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
+                    <td className="px-3 py-2 md:px-4 md:py-3 hidden lg:table-cell">
                       <div className="text-sm text-gray-900">{u.email || '-'}</div>
                       <div className="text-sm text-gray-500">{u.telephone || '-'}</div>
                     </td>
-                    {/* <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="text-sm text-gray-900">{u.poste || '-'}</div>
-                    </td> */}
-                    <td className="px-4 py-3 hidden xl:table-cell">
+                    <td className="px-3 py-2 md:px-4 md:py-3 hidden xl:table-cell">
                       <div className="text-sm text-gray-900">{u.departement?.nom || '-'}</div>
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
+                    <td className="px-3 py-2 md:px-4 md:py-3 hidden xl:table-cell">
                       <div className="text-sm text-gray-900">
                         {u.salaire ? formatCurrency(Number(u.salaire)) : '-'}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 md:px-4 md:py-3">
                       {displayStatut(u)}
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
+                    <td className="px-3 py-2 md:px-4 md:py-3 hidden sm:table-cell">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeClass(u.role || '')}`}>
                         {u.role || '-'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 md:px-4 md:py-3">
                       <div className="flex items-center space-x-1">
                         <button 
-                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-300 hover:scale-110"
+                          className="p-1 md:p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all duration-300 hover:scale-110"
                           onClick={() => { setSelectedUser(u); setShowViewModal(true); }}
                           title="Voir détails"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
-                          className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110"
+                          className="p-1 md:p-2 text-green-500 hover:bg-green-50 rounded-lg transition-all duration-300 hover:scale-110"
                           onClick={() => { setSelectedUser(u); setShowEditModal(true); }}
                           title="Modifier"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
-                          className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
+                          className={`p-1 md:p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
                             u.isActive 
                               ? 'text-red-500 hover:bg-red-50' 
                               : 'text-green-500 hover:bg-green-50'
@@ -769,11 +749,11 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
             <div className="space-y-6">
               {/* Header avec photo et badges */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex-shrink-0 h-20 w-20 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-2xl font-medium">{selectedUser.prenom?.[0]}{selectedUser.nom?.[0]}</span>
+                <div className="flex-shrink-0 h-16 w-16 md:h-20 md:w-20 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl md:text-2xl font-medium">{selectedUser.prenom?.[0]}{selectedUser.nom?.[0]}</span>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold">{selectedUser.prenom} {selectedUser.nom}</h3>
+                  <h3 className="text-lg md:text-xl font-semibold">{selectedUser.prenom} {selectedUser.nom}</h3>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${selectedUser.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {selectedUser.isActive ? 'Actif' : 'Inactif'}
@@ -786,10 +766,10 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
               </div>
 
               {/* Infos détaillées */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {/* Informations personnelles */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium border-b pb-2">Informations Personnelles</h4>
+                <div className="space-y-3 md:space-y-4">
+                  <h4 className="text-base md:text-lg font-medium border-b pb-2">Informations Personnelles</h4>
                   <InfoItem label="Email" value={selectedUser.email} />
                   <InfoItem label="Téléphone" value={selectedUser.telephone} />
                   <InfoItem label="Date de naissance" value={selectedUser.date_naissance ? new Date(selectedUser.date_naissance).toLocaleDateString('fr-FR') : '-'} />
@@ -798,8 +778,8 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                 </div>
 
                 {/* Informations professionnelles */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium border-b pb-2">Informations Professionnelles</h4>
+                <div className="space-y-3 md:space-y-4">
+                  <h4 className="text-base md:text-lg font-medium border-b pb-2">Informations Professionnelles</h4>
                   <InfoItem label="Poste" value={selectedUser.poste} />
                   <InfoItem label="Département" value={selectedUser.departement?.nom} />
                   <InfoItem label="Type de contrat" value={selectedUser.typeContrat} />
@@ -809,13 +789,13 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
 
               {/* Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg" onClick={() => {
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm md:text-base" onClick={() => {
                   setShowViewModal(false);
                   setShowEditModal(true);
                 }}>
                   Modifier
                 </button>
-                <button className="px-4 py-2 border rounded-lg" onClick={() => setShowViewModal(false)}>Fermer</button>
+                <button className="px-4 py-2 border rounded-lg text-sm md:text-base" onClick={() => setShowViewModal(false)}>Fermer</button>
               </div>
             </div>
           </Modal>
@@ -834,6 +814,7 @@ export const HRDashboard: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false)
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [unauthorized, setUnauthorized] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   // Écouter les événements de déconnexion
   useEffect(() => {
@@ -849,6 +830,25 @@ export const HRDashboard: React.FC = () => {
     return () => {
       window.removeEventListener("unauthorized", handleUnauthorized)
     }
+  }, [])
+
+  // Fermer la sidebar mobile quand on change de vue
+  useEffect(() => {
+    if (isMobileSidebarOpen) {
+      setIsMobileSidebarOpen(false)
+    }
+  }, [activeView])
+
+  // Gérer le redimensionnement de la fenêtre
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   const handleLogout = async () => {
@@ -895,6 +895,8 @@ export const HRDashboard: React.FC = () => {
         return <PerformanceEmployer />
       case "formation":
         return <SuiviFormations />
+      case "PaiementPage":
+        return <PaiementPage />
       default:
         return <Dashboard />
     }
@@ -910,7 +912,8 @@ export const HRDashboard: React.FC = () => {
       departments: "Gestion des Departements",
       reports: "Rapports RH",
       performance: "Performances",
-      formation: "Suivi des Formations"
+      formation: "Suivi des Formations",
+      PaiementPage: " Gestion de paiement"
     }
     return titles[activeView] || "Ressources Humaines"
   }
@@ -934,80 +937,139 @@ export const HRDashboard: React.FC = () => {
         theme="light"
       />
 
-      {/* Sidebar RH */}
-      <div
-        className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${
-          sidebarCollapsed ? "w-16" : "w-64"
-        }`}
+      {/* Overlay pour mobile */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+     {/* Sidebar RH avec animations améliorées */}
+<div
+  className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-50 transition-all duration-500 ease-in-out ${
+    sidebarCollapsed ? "w-16" : "w-64"
+  } ${isMobileSidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full md:translate-x-0"}`}
+  style={{
+    boxShadow: isMobileSidebarOpen ? '0 0 25px rgba(0, 0, 0, 0.15)' : 'none'
+  }}
+>
+  <div className="p-4 flex justify-between items-center border-b border-gray-100">
+    <div className="flex items-center space-x-3 overflow-hidden">
+      <button
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        className="p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 hidden md:block"
+        aria-label={sidebarCollapsed ? "Agrandir le menu" : "Réduire le menu"}
       >
-        <div className="p-4">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Menu className="h-5 w-5 text-gray-800" />
-            </button>
-            {!sidebarCollapsed && (
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">RH</h1>
-                <p className="text-xs text-gray-500">Ressources Humaines</p>
-              </div>
-            )}
-          </div>
+        <Menu className="h-5 w-5 text-gray-800 transition-transform duration-300" />
+      </button>
+      {!sidebarCollapsed && (
+        <div className="animate-fadeInRight">
+          <h1 className="text-xl font-bold text-gray-800">RH</h1>
+          <p className="text-xs text-gray-500">Ressources Humaines</p>
         </div>
+      )}
+    </div>
+    <button 
+      className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:rotate-90"
+      onClick={() => setIsMobileSidebarOpen(false)}
+      aria-label="Fermer le menu"
+    >
+      <X className="h-5 w-5 text-gray-800 transition-transform duration-300" />
+    </button>
+  </div>
 
-        <nav className="mt-6">
-          {hrMenuItems.map((item) => {
-            const Icon = item.icon
-            const isActive = activeView === item.id
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveView(item.id as HRView)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-colors ${
-                  isActive
-                    ? "bg-blue-50 text-blue-600 border-r-2 border-blue-600"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-                title={sidebarCollapsed ? item.label : ""}
-              >
-                <Icon className="h-5 w-5 flex-shrink-0" />
-                {!sidebarCollapsed && <span className="font-medium">{item.label}</span>}
-              </button>
-            )
-          })}
-        </nav>
+  <nav className="mt-6">
+    {hrMenuItems.map((item, index) => {
+      const Icon = item.icon
+      const isActive = activeView === item.id
+      return (
+        <button
+          key={item.id}
+          onClick={() => setActiveView(item.id as HRView)}
+          className={`group w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 ${
+            isActive
+              ? "bg-blue-50 text-blue-600 border-r-4 border-blue-600 shadow-inner"
+              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:border-r-4 hover:border-gray-300"
+          } ${sidebarCollapsed ? "justify-center" : ""}`}
+          title={sidebarCollapsed ? item.label : ""}
+          style={{
+            animationDelay: `${index * 50}ms`,
+            transformOrigin: 'left center'
+          }}
+          onMouseEnter={(e) => {
+            if (sidebarCollapsed) {
+              e.currentTarget.classList.add('animate-pulse')
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (sidebarCollapsed) {
+              e.currentTarget.classList.remove('animate-pulse')
+            }
+          }}
+        >
+          <Icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${
+            isActive ? "scale-110" : "group-hover:scale-110"
+          }`} />
+          {!sidebarCollapsed && (
+            <span className="font-medium transition-all duration-300 animate-fadeIn">
+              {item.label}
+            </span>
+          )}
+          {sidebarCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+              {item.label}
+            </div>
+          )}
+        </button>
+      )
+    })}
+  </nav>
 
-        {/* Section déconnexion dans le sidebar */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            disabled={logoutLoading}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {logoutLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-            ) : (
-              <LogOut className="h-5 w-5" />
-            )}
-            {!sidebarCollapsed && <span>{logoutLoading ? "Déconnexion..." : "Déconnexion"}</span>}
-          </button>
-        </div>
-      </div>
+  {/* Section déconnexion dans le sidebar */}
+  <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 bg-white">
+    <button
+      onClick={handleLogout}
+      disabled={logoutLoading}
+      className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-300 group"
+      aria-label="Se déconnecter"
+    >
+      {logoutLoading ? (
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
+      ) : (
+        <>
+          <LogOut className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+          {!sidebarCollapsed && (
+            <span className="transition-all duration-300 animate-fadeIn">
+              {logoutLoading ? "Déconnexion..." : "Déconnexion"}
+            </span>
+          )}
+        </>
+      )}
+    </button>
+  </div>
+</div>
 
-      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
+      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "md:ml-16" : "md:ml-64"}`}>
         {/* Header RH avec profil utilisateur */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <header className="bg-white shadow-sm border-b border-gray-200 px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
-              <p className="text-sm text-gray-600">
-                Bienvenue, {user.prenom} {user.nom}
-              </p>
+            <div className="flex items-center">
+              <button 
+                className="md:hidden mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => setIsMobileSidebarOpen(true)}
+              >
+                <Menu className="h-5 w-5 text-gray-800" />
+              </button>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
+                <p className="text-xs md:text-sm text-gray-600">
+                  Bienvenue, {user.prenom} {user.nom}
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4">
               {/* Bouton notifications */}
               <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 <Bell className="h-5 w-5" />
@@ -1072,7 +1134,9 @@ export const HRDashboard: React.FC = () => {
         </header>
 
         {/* Content */}
-        <div className="p-6">{renderView()}</div>
+        <div className="p-4 md:p-6 animate-fadeIn">
+          {renderView()}
+        </div>
       </main>
 
       {/* Styles CSS pour le calendrier */}
@@ -1149,6 +1213,33 @@ export const HRDashboard: React.FC = () => {
           }
           .animate-pulse {
             animation: pulse 2s infinite;
+          }
+
+          /* Responsive adjustments for mobile */
+          @media (max-width: 768px) {
+            .rbc-toolbar {
+              flex-direction: column;
+              align-items: flex-start;
+            }
+            .rbc-toolbar .rbc-toolbar-label {
+              margin: 8px 0;
+            }
+            .rbc-btn-group {
+              margin-bottom: 8px;
+            }
+          }
+
+          /* Improved responsive table */
+          @media (max-width: 640px) {
+            table {
+              display: block;
+              width: 100%;
+              overflow-x: auto;
+            }
+            th, td {
+              padding: 8px 4px;
+              font-size: 0.75rem;
+            }
           }
         `}
       </style>

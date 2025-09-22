@@ -9,6 +9,7 @@ export interface Departement {
 }
 
 export interface Employee {
+  createdByrh: any;
   actif: boolean;
   _id: string;
   matricule?: string;

@@ -96,8 +96,6 @@ exports.updateFormation = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error });
   }
 };
-
-// Supprimer une formation
 // Supprimer une formation
 exports.deleteFormation = async (req, res) => {
   try {

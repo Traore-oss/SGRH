@@ -1,8 +1,13 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const salaireController = require('../Controller/SalaireController');
+const paiementController = require("../Controller/SalaireController");
+const { requireAuth } = require("../midlewere/authmidleware");
 
-router.post('/calculerSalaire', salaireController.calculerSalaire);
-router.get('/getAllSalaires', salaireController.getAllSalaires);
+// Routes CRUD Paiements
+router.post("/",requireAuth, paiementController.creerPaiement);
+router.get("/",requireAuth, paiementController.getPaiements);
+router.get("/:id",requireAuth, paiementController.getPaiementById);
+router.put("/:id", requireAuth,paiementController.updatePaiement);
+router.delete("/:id",requireAuth, paiementController.deletePaiement);
 
 module.exports = router;

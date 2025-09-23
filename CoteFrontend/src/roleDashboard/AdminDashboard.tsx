@@ -1,25 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  Users, Building2,  Calendar,
-  Clock, Menu, LogOut, Edit, Eye, Filter, Search, X, Plus, User, Bell, ChevronDown, Lock,
-  Home, BookOpen,  TrendingUp
+  Users, Building2,Edit, Eye, Filter, Search, X, Plus, User,ChevronDown, Lock,
 } from 'lucide-react';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import {useAuth} from '../context/AuthContext';
-import { getEmployees, toggleEmployeeActive, type Employee } from '../Components/ServiceEmployer';
-import { Dashboard } from '../pages/Dashboard';
-import { CongesManager } from '../pages/Conges';
-import { Departments } from '../pages/Departement';
-import { PerformanceEmployer } from '../pages/Performance';
-import { Reports } from '../pages/Rapport';
-import Salaire from "../pages/PaiementPage";
-import SuiviFormations from "../pages/Formation";
+import { useEffect, useState } from 'react';
+import { getEmployees, toggleEmployeeActive,type Employee } from '../Components/ServiceEmployer';
+import { toast } from 'react-toastify';
 import { EmployeeForm } from '../forms/EmployeeForm';
-import { type Key, type ReactElement, type JSXElementConstructor, type ReactNode, type ReactPortal, useState, useEffect } from 'react';
-import AttendanceManager from '../pages/Pointages';
-
 // ==================== Styles d'animation ====================
 const cardAnimation = `
   @keyframes fadeInUp {
@@ -226,21 +213,6 @@ const calculateSeniority = (hireDate: string) => {
     return 'Date invalide';
   }
 };
-
-// ==================== Menu amélioré avec icônes ====================
-const adminMenuItems = [
-  { id: 'dashboard', label: 'Tableau de Bord', icon: Home },
-  { id: 'users', label: 'Utilisateurs', icon: Users },
-  { id: 'CongesManager', label: 'Gestion des Congés', icon: Calendar },
-  { id: 'attendance', label: 'Présences', icon: Clock },
-  { id: 'departments', label: 'Départements', icon: Building2 },
-  { id: 'Performance', label: 'Performance', icon: TrendingUp },
-  { id: 'SuiviFormations', label: 'Formations', icon: BookOpen },
-  // { id: 'reports', label: 'Rapports', icon: FileText },
-  // { id: 'Salaire', label: 'Salaires', icon: DollarSign },
-  // { id: 'settings', label: 'Paramètres', icon: Settings },
-];
-
 // ==================== UserManagement amélioré ====================
 
 export const UserManagement: React.FC = () => {
@@ -273,12 +245,10 @@ export const UserManagement: React.FC = () => {
     fetchEmployees(); 
   }, []);
 
-const toggleActive = async (userId: string, isActive: boolean, userName: string) => {
+const toggleActive = async (userId: string) => {
   try {
-    // Appel réel à l'API
-    const data = await toggleEmployeeActive(userId); // { message, utilisateur }
+    const data = await toggleEmployeeActive(userId);
 
-    // Mettre à jour la liste des employés localement
     setEmployees(prev =>
       prev.map(emp => emp._id === userId ? { ...emp, isActive: data.utilisateur.isActive } : emp)
     );
@@ -289,6 +259,8 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
     toast.error(err.message || "Impossible de changer l'état de l'utilisateur.");
   }
 };
+
+
 
 
   // Statistiques
@@ -365,13 +337,13 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
           color="bg-red-500"
           delay={200}
         />
-        <StatCard
+        {/* <StatCard
           title="Départements"
           value={new Set(employees.map(e => e.departement?.nom).filter(Boolean)).size}
           icon={<Building2 className="h-6 w-6 text-white" />}
           color="bg-purple-500"
           delay={300}
-        />
+        /> */}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp">
@@ -527,17 +499,18 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                         >
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button
-                          className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
-                            u.isActive 
-                              ? 'text-red-500 hover:bg-red-50' 
-                              : 'text-green-500 hover:bg-green-50'
-                          }`}
-                          onClick={() => toggleActive(u._id, !!u.isActive, `${u.prenom} ${u.nom}`)}
-                          title={u.isActive ? 'Désactiver' : 'Activer'}
-                        >
-                          {u.isActive ? <Lock className="h-4 w-4" /> : 'Activer'}
-                        </button>
+                          <button
+                                className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
+                                u.isActive 
+                                ? 'text-red-500 hover:bg-red-50' 
+                                : 'text-green-500 hover:bg-green-50'
+                                }`}
+                                onClick={() => toggleActive(u._id)}
+                                title={u.isActive ? 'Désactiver' : 'Activer'}
+                                >
+                                {u.isActive ? <Lock className="h-4 w-4" /> : 'Activer'}
+                          </button>
+
                       </div>
                     </td>
                   </tr>
@@ -700,294 +673,3 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
     </div>
   );
 };
-
-// ==================== AdminDashboard amélioré ====================
-type AdminView = 'dashboard' | 'CongesManager' | 'attendance' | 'departments' | 'reports' | 'settings' | 'users' | 'Performance' |'SuiviFormations' | 'Salaire';
-
-export const AdminDashboard: React.FC = () => {
-  const { user, logout } = useAuth();
-  const [activeView, setActiveView] = useState<AdminView>('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-    }
-  };
-
-  // Simuler la récupération des notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        // Simulation de données de notification
-        const mockNotifications = [
-          { id: 1, type: 'leave', message: 'Nouvelle demande de congé', timestamp: new Date(), read: false },
-          { id: 2, type: 'attendance', message: 'Pointage en retard signalé', timestamp: new Date(), read: false },
-          { id: 3, type: 'salary', message: 'Paiement de salaire effectué', timestamp: new Date(), read: true },
-        ];
-        setNotifications(mockNotifications);
-      } catch (error) {
-        console.error('Erreur lors du chargement des notifications:', error);
-      }
-    };
-
-    fetchNotifications();
-  }, []);
-
-  const renderView = () => {
-    switch (activeView) {
-      case 'dashboard': return <Dashboard />;
-      case 'CongesManager': return <CongesManager />;
-      case 'attendance': return <AttendanceManager />;
-      case 'Performance': return <PerformanceEmployer />;
-      case 'departments': return <Departments />;
-      case 'SuiviFormations': return <SuiviFormations />;
-      case 'reports': return <Reports />;
-      case 'Salaire': return <Salaire />;
-      case 'users': return <UserManagement />;
-      case 'settings': return <div className="p-4">Paramètres Système</div>;
-      default: return <Dashboard />;
-    }
-  };
-
-  const getViewTitle = (): string => {
-    const titles: Record<AdminView, string> = {
-      dashboard: 'Tableau de Bord Administrateur',
-      departments: 'Gestion des Départements',
-      CongesManager: 'Gestion des Congés',
-      attendance: 'Gestion des Présences',
-      Performance: 'Gestion des Performances',
-      SuiviFormations: 'Gestion des Formations',
-      reports: 'Rapports et Statistiques',
-      Salaire: 'Gestion des Salaires',
-      users: 'Gestion des Utilisateurs',
-      settings: 'Paramètres Système'
-    };
-    return titles[activeView] || 'Tableau de Bord';
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-      
-      {/* Sidebar pour desktop */}
-      <div className={`hidden md:flex fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-        <div className="flex flex-col h-full">
-          <div className="p-4 flex items-center space-x-3">
-            <button 
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors hover-lift"
-            >
-              <Menu className="h-5 w-5 text-gray-800" />
-            </button>
-            {!sidebarCollapsed && (
-              <div className="animate-slideInLeft">
-                <p className="text-xs text-gray-500">ADMIN <br /> Contrôle total</p>
-              </div>
-            )}
-          </div>
-          <nav className="mt-6 flex-1">
-            {adminMenuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveView(item.id as AdminView);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 sidebar-item ${isActive ? 'active bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                  {!sidebarCollapsed && <span className="transition-opacity duration-300">{item.label}</span>}
-                </button>
-              );
-            })}
-          </nav>
-          <div className="p-4 border-t border-gray-200">
-            <button 
-              onClick={handleLogout} 
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors sidebar-item"
-            >
-              <LogOut className="h-5 w-5" />
-              {!sidebarCollapsed && <span>Déconnexion</span>}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Menu mobile */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden animate-fadeInUp" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="fixed left-0 top-0 h-full bg-white w-64 shadow-lg z-50 animate-slideInLeft" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 flex items-center justify-between border-b border-gray-200">
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">ADMIN</h1>
-                <p className="text-xs text-gray-500">Contrôle total</p>
-              </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover-lift">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="mt-6">
-              {adminMenuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveView(item.id as AdminView);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 sidebar-item ${isActive ? 'active bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
-              <button 
-                onClick={handleLogout} 
-                className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors sidebar-item"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>Déconnexion</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
-        {/* Header amélioré avec photo utilisateur */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center z-30">
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={() => setIsMobileMenuOpen(true)} 
-              className="p-2 hover:bg-gray-100 rounded-lg md:hidden hover-lift"
-            >
-              <Menu className="h-5 w-5 text-gray-800" />
-            </button>
-            <h2 className="text-xl font-semibold text-gray-800">{getViewTitle()}</h2>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="relative group">
-              <button 
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative hover-lift"
-                onClick={() => {
-                  // Marquer les notifications comme lues
-                  setNotifications(notifications.map(n => ({ ...n, read: true })));
-                }}
-              >
-                <Bell className="h-5 w-5" />
-                {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce">
-                    {notifications.filter(n => !n.read).length}
-                  </span>
-                )}
-              </button>
-              
-              {/* Dropdown des notifications */}
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 hidden group-hover:block animate-fadeInUp">
-                <div className="px-4 py-2 border-b border-gray-200">
-                  <h3 className="font-medium text-gray-800">Notifications</h3>
-                </div>
-                <div className="max-h-60 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-gray-500">Aucune notification</div>
-                  ) : (
-                    notifications.map((notification: { id: Key | null | undefined; read: any; message: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; timestamp: string | number | Date; }) => (
-                      <div 
-                        key={notification.id} 
-                        className={`px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
-                      >
-                        <div className="text-sm text-gray-800">{notification.message}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {new Date(notification.timestamp).toLocaleString('fr-FR')}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="px-4 py-2 border-t border-gray-200">
-                  <button className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
-                    Voir toutes les notifications
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <button 
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors hover-lift"
-              >
-                <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center transition-transform hover:scale-110">
-                  <span className="text-white font-medium text-sm">
-                    {user?.prenom?.[0]}{user?.nom?.[0]}
-                  </span>
-                </div>
-                <div className="hidden md:block text-left">
-                  <div className="text-sm font-medium text-gray-900">
-                    {user?.prenom} {user?.nom}
-                  </div>
-                  <div className="text-xs text-gray-500 capitalize">
-                    {user?.role}
-                  </div>
-                </div>
-                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {showUserDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-fadeInUp">
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <div className="text-sm font-medium text-gray-900">{user?.prenom} {user?.nom}</div>
-                    <div className="text-xs text-gray-500 capitalize">{user?.role}</div>
-                  </div>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                    Mon profil
-                  </button>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                    Historique des activités
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Déconnexion</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-4 md:p-6">
-          {renderView()}
-        </div>
-      </div>
-    </div>
-  );
-}

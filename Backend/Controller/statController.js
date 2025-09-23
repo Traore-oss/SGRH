@@ -5,7 +5,6 @@ const Performance = require("../Models/evaluationModel");
 exports.getEmployeeStats = async (req, res) => {
   try {
     const employeId = req.params.id;
-
     // Statistiques congés
     const conges = await Conge.find({ employe: employeId });
     const leaveStats = {
@@ -14,7 +13,6 @@ exports.getEmployeeStats = async (req, res) => {
       pending: conges.filter(c => c.etat === "en attente").length,
       total: conges.length
     };
-
     // Statistiques présence
     const attendances = await Attendance.find({ employe: employeId });
     const presence = attendances.filter(a => a.statut === "Présent").length;

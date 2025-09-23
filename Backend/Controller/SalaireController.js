@@ -10,7 +10,6 @@ const verifierDroitPaiement = (user, employeDoc) => {
   if (user.role === "Employe" && employeDoc._id.equals(user._id)) return true;
   return false; 
 };
-
 // ➕ Créer paiement (Admin ou RH)
 exports.creerPaiement = async (req, res) => {
   try {

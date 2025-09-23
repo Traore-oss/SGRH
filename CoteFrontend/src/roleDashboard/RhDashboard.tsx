@@ -1,28 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
 import axios from "axios";
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { User, Plus, Eye, Edit, Lock, Filter, ChevronDown, Search, Users, Building2, FileText, Calendar, Clock, Menu, LogOut, Bell, Heart, UserPlus, TrendingUp, X } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { Calendar as BigCalendar, momentLocalizer } from "react-big-calendar";
+import { useState, useEffect, } from "react";
+import { User, Plus, Eye, Edit, Lock, Filter, ChevronDown, Search, Users} from "lucide-react";
 import moment from "moment";
 import "moment/locale/fr";
-import { toast, ToastContainer } from "react-toastify";
+import { toast} from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { useAuth } from "../context/AuthContext";
 import { Modal } from "../commons/Modal";
 import { EmployeeForm } from "../forms/EmployeeForm";
-import { CongesManager } from "../pages/Conges";
-import  AttendanceManager from "../pages/Pointages";
-import { Departments } from "../pages/Departement";
-import { PerformanceEmployer } from "../pages/Performance";
-import { Reports } from "../pages/Rapport";
-import SuiviFormations from "../pages/Formation"
-import Recrutement from "../pages/OffreEmploi"
 import { toggleEmployeeActive } from "../Components/ServiceEmployer";
-import PaiementPage from "../pages/PaiementPage";
+
 
 // Configuration de l'API
 const API_BASE = "http://localhost:8000/api";
@@ -98,28 +87,8 @@ export const refuserConge = async (id: string) => {
   const res = await axios.put(`${API_BASE}/conges/refuserConge/${id}`, {}, { withCredentials: true });
   return res.data;
 };
-
-// Types pour le tableau de bord
-interface DashboardStats {
-  totalEmployees: number;
-  activeEmployees: number;
-  onLeave: number;
-  absent: number;
-  totalLeaves: number;
-}
-
-interface CalendarEvent {
-  title: string;
-  start: Date;
-  end: Date;
-  type: string;
-  allDay?: boolean;
-}
-
 // Configuration du calendrier
 moment.locale('fr');
-const localizer = momentLocalizer(moment);
-
 // Composant StatCard pour afficher les statistiques
 interface StatCardProps {
   title: string;
@@ -166,245 +135,6 @@ const InfoItem: React.FC<{ label: string; value: React.ReactNode; isFullWidth?: 
     </div>
   </div>
 );
-
-// Menu des vues RH
-type HRView =
-  | "dashboard"
-  | "users"
-  | "Recrutement"
-  | "attendance"
-  | "departments"
-  | "reports"
-  | "recruitment"
-  | "performance"
-  | "formation"
-  |  "CongesManager"
-  |  "PaiementPage"
-
-const hrMenuItems = [
-  { id: "dashboard", label: "Tableau de Bord", icon: Heart },
-  { id: "users", label: "Gestion Utilisateurs", icon: Users },
-  { id: 'CongesManager', label: 'Gestion des Congés', icon: Calendar },
-  { id: "attendance", label: "Gestion Présences", icon: Clock },
-  { id: "departments", label: "Gestion Départements", icon: Building2 },
-   { id: "Recrutement", label: " Gestion des Recurtements", icon: UserPlus },
-  { id: "performance", label: "Gestion Performances", icon: TrendingUp },
-  { id: "formation", label: "Gestion des Formations", icon: FileText },
-  { id: "PaiementPage", label: "Gestion des Paiement", icon: FileText },
-];
-
-// Composant Dashboard
-const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalEmployees: 0,
-    activeEmployees: 0,
-    onLeave: 0,
-    absent: 0,
-    totalLeaves: 0
-  });
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Charger les données du tableau de bord
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const employeesData = await getEmployees();
-        const leavesData = await getDemandesConge();
-        
-        // Calculer les statistiques
-        const totalEmployees = employeesData.length;
-        const activeEmployees = employeesData.filter(emp => emp.isActive).length;
-        const approvedLeaves = leavesData.filter(leave => leave.etat === "approuvé");
-        const onLeave = approvedLeaves.length;
-        const absent = Math.floor(totalEmployees * 0.05); // Simulation d'absences
-        
-        setStats({
-          totalEmployees,
-          activeEmployees,
-          onLeave,
-          absent,
-          totalLeaves: leavesData.length
-        });
-        
-        // Préparer les événements pour le calendrier
-        const calendarEvents = approvedLeaves.map(leave => {
-          const employeeName = typeof leave.employe === 'string' 
-            ? "Employé" 
-            : `${leave.employe.prenom} ${leave.employe.nom}`;
-            
-          return {
-            title: `${employeeName} - ${leave.typeConge}`,
-            start: new Date(leave.dateDebut),
-            end: new Date(new Date(leave.dateFin).setHours(23, 59, 59)), // Fin de journée
-            type: leave.typeConge,
-            allDay: true
-          };
-        });
-        
-        setEvents(calendarEvents);
-      } catch (error) {
-        console.error("Erreur lors du chargement des données:", error);
-        toast.error("Erreur lors du chargement des données du tableau de bord");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  // Données pour le diagramme circulaire
-  const pieChartData = useMemo(() => [
-    { name: 'Présents', value: stats.activeEmployees - stats.onLeave - stats.absent },
-    { name: 'En congé', value: stats.onLeave },
-    { name: 'Absents', value: stats.absent }
-  ], [stats]);
-
-  // Couleurs pour le diagramme circulaire
-  const COLORS = ['#10B981', '#3B82F6', '#EF4444'];
-
-  // Style des événements du calendrier
-  const eventStyleGetter = (event: CalendarEvent) => {
-    let backgroundColor = '#3B82F6'; // Bleu par défaut
-    
-    if (event.type.includes('maladie') || event.type.toLowerCase().includes('sick')) {
-      backgroundColor = '#EF4444'; // Rouge pour les congés maladie
-    } else if (event.type.includes('annuel') || event.type.toLowerCase().includes('annual')) {
-      backgroundColor = '#10B981'; // Vert pour les congés annuels
-    } else if (event.type.includes('exceptionnel') || event.type.toLowerCase().includes('exceptional')) {
-      backgroundColor = '#8B5CF6'; // Violet pour les congés exceptionnels
-    }
-    
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '5px',
-        opacity: 0.8,
-        color: 'white',
-        border: '0px',
-        display: 'block'
-      }
-    };
-  };
-
-  // Formateur de date pour le calendrier
-  const formats = {
-    dateFormat: 'D',
-    dayFormat: (date: Date, culture: string, localizer: any) => 
-      localizer.format(date, 'DD', culture),
-    monthHeaderFormat: (date: Date, culture: string, localizer: any) =>
-      localizer.format(date, 'MMMM YYYY', culture),
-    dayHeaderFormat: (date: Date, culture: string, localizer: any) =>
-      localizer.format(date, 'dddd DD MMM', culture),
-    dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }, culture: string, localizer: any) =>
-      `${localizer.format(start, 'DD MMM', culture)} - ${localizer.format(end, 'DD MMM', culture)}`,
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Cartes de statistiques avec animations */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatCard 
-          title="Total Employés" 
-          value={stats.totalEmployees} 
-          icon={<Users className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
-          color="bg-blue-500" 
-          delay={0}
-        />
-        <StatCard 
-          title="Employés Actifs" 
-          value={stats.activeEmployees} 
-          icon={<User className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
-          color="bg-green-500" 
-          delay={100}
-        />
-        <StatCard 
-          title="Total Congés" 
-          value={stats.totalLeaves} 
-          icon={<Calendar className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
-          color="bg-purple-500" 
-          delay={200}
-        />
-        <StatCard 
-          title="En Congé Actuel" 
-          value={stats.onLeave} 
-          icon={<Clock className="h-5 w-5 md:h-6 md:w-6 text-white" />} 
-          color="bg-yellow-500" 
-          delay={300}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Diagramme circulaire pour la présence */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 animate-fadeInUp" style={{ animationDelay: '400ms' }}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Présence des Employés</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieChartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  animationBegin={500}
-                  animationDuration={1000}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`${value} employés`, '']}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Calendrier des congés */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 animate-fadeInUp" style={{ animationDelay: '500ms' }}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Calendrier des Congés</h3>
-          <div className="h-64">
-            <BigCalendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              eventPropGetter={eventStyleGetter}
-              views={['month']}
-              tooltipAccessor={(event) => event.title}
-              formats={formats}
-              messages={{
-                today: "Aujourd'hui",
-                previous: "Précédent",
-                next: "Suivant",
-                month: "Mois",
-                showMore: (total) => `+${total} de plus`,
-              }}
-              popup
-              className="calendar-container"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Composant pour afficher la gestion des employés avec les fonctionnalités complètes
 export const UserManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -438,7 +168,7 @@ export const UserManagement: React.FC = () => {
     fetchEmployees(); 
   }, []);
 
-const toggleActive = async (userId: string, isActive: boolean, userName: string) => {
+const toggleActive = async (userId: string, _isActive: boolean, p0: string) => {
   try {
     // Appel réel à l'API
     const data = await toggleEmployeeActive(userId); // { message, utilisateur }
@@ -565,19 +295,6 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
                           <option value="all">Tous les rôles</option>
                           {roles.map(role => (
                             <option key={role} value={role}>{role}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Département</div>
-                        <select
-                          value={departmentFilter}
-                          onChange={e => setDepartmentFilter(e.target.value)}
-                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm transition-colors focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="all">Tous les départements</option>
-                          {departments.map(dept => (
-                            <option key={dept} value={dept}>{dept}</option>
                           ))}
                         </select>
                       </div>
@@ -805,444 +522,444 @@ const toggleActive = async (userId: string, isActive: boolean, userName: string)
   );
 };
 
-// Composant principal HRDashboard
-export const HRDashboard: React.FC = () => {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const [activeView, setActiveView] = useState<HRView>("dashboard")
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [showUserDropdown, setShowUserDropdown] = useState(false)
-  const [logoutLoading, setLogoutLoading] = useState(false)
-  const [unauthorized, setUnauthorized] = useState(false)
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+// // Composant principal HRDashboard
+// export const HRDashboard: React.FC = () => {
+//   const { user, logout } = useAuth()
+//   const navigate = useNavigate()
+//   const [activeView, setActiveView] = useState<HRView>("dashboard")
+//   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+//   const [showUserDropdown, setShowUserDropdown] = useState(false)
+//   const [logoutLoading, setLogoutLoading] = useState(false)
+//   const [unauthorized, setUnauthorized] = useState(false)
+//   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
-  // Écouter les événements de déconnexion
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      setUnauthorized(true)
-      toast.error("Session expirée. Veuillez vous reconnecter.")
-      setTimeout(() => {
-        handleLogout()
-      }, 2000)
-    }
+//   // Écouter les événements de déconnexion
+//   useEffect(() => {
+//     const handleUnauthorized = () => {
+//       setUnauthorized(true)
+//       toast.error("Session expirée. Veuillez vous reconnecter.")
+//       setTimeout(() => {
+//         handleLogout()
+//       }, 2000)
+//     }
 
-    window.addEventListener("unauthorized", handleUnauthorized)
-    return () => {
-      window.removeEventListener("unauthorized", handleUnauthorized)
-    }
-  }, [])
+//     window.addEventListener("unauthorized", handleUnauthorized)
+//     return () => {
+//       window.removeEventListener("unauthorized", handleUnauthorized)
+//     }
+//   }, [])
 
-  // Fermer la sidebar mobile quand on change de vue
-  useEffect(() => {
-    if (isMobileSidebarOpen) {
-      setIsMobileSidebarOpen(false)
-    }
-  }, [activeView])
+//   // Fermer la sidebar mobile quand on change de vue
+//   useEffect(() => {
+//     if (isMobileSidebarOpen) {
+//       setIsMobileSidebarOpen(false)
+//     }
+//   }, [activeView])
 
-  // Gérer le redimensionnement de la fenêtre
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsMobileSidebarOpen(false)
-      }
-    }
+//   // Gérer le redimensionnement de la fenêtre
+//   useEffect(() => {
+//     const handleResize = () => {
+//       if (window.innerWidth >= 768) {
+//         setIsMobileSidebarOpen(false)
+//       }
+//     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+//     window.addEventListener('resize', handleResize)
+//     return () => window.removeEventListener('resize', handleResize)
+//   }, [])
 
-  const handleLogout = async () => {
-    try {
-      setLogoutLoading(true)
-      await logout()
-      navigate("/login")
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion:", error)
-    } finally {
-      setLogoutLoading(false)
-      setShowUserDropdown(false)
-    }
-  }
+//   const handleLogout = async () => {
+//     try {
+//       setLogoutLoading(true)
+//       await logout()
+//       navigate("/login")
+//     } catch (error) {
+//       console.error("Erreur lors de la déconnexion:", error)
+//     } finally {
+//       setLogoutLoading(false)
+//       setShowUserDropdown(false)
+//     }
+//   }
 
-  const renderView = () => {
-    if (unauthorized) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64">
-          <div className="text-red-600 text-lg mb-4">Session expirée</div>
-          <button onClick={handleLogout} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            Se reconnecter
-          </button>
-        </div>
-      )
-    }
+//   const renderView = () => {
+//     if (unauthorized) {
+//       return (
+//         <div className="flex flex-col items-center justify-center h-64">
+//           <div className="text-red-600 text-lg mb-4">Session expirée</div>
+//           <button onClick={handleLogout} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+//             Se reconnecter
+//           </button>
+//         </div>
+//       )
+//     }
 
-    switch (activeView) {
-      case "dashboard":
-        return <Dashboard />
-      case "users":
-        return <UserManagement />
-      case "CongesManager":
-        return <CongesManager />
-      case "attendance":
-        return <AttendanceManager />
-      case "departments":
-        return <Departments />
-      case "reports":
-        return <Reports />
-      case "Recrutement":
-        return <Recrutement />
-      case "performance":
-        return <PerformanceEmployer />
-      case "formation":
-        return <SuiviFormations />
-      case "PaiementPage":
-        return <PaiementPage />
-      default:
-        return <Dashboard />
-    }
-  }
+//     switch (activeView) {
+//       case "dashboard":
+//         return <Dashboard />
+//       case "users":
+//         return <UserManagement />
+//       case "CongesManager":
+//         return <CongesManager />
+//       case "attendance":
+//         return <AttendanceManager />
+//       case "departments":
+//         return <Departments />
+//       case "reports":
+//         return <Reports />
+//       case "Recrutement":
+//         return <Recrutement />
+//       case "performance":
+//         return <PerformanceEmployer />
+//       case "formation":
+//         return <SuiviFormations />
+//       case "PaiementPage":
+//         return <PaiementPage />
+//       default:
+//         return <Dashboard />
+//     }
+//   }
 
-  const getViewTitle = () => {
-    const titles = {
-      dashboard: "Tableau de Bord RH",
-      users: "Gestion des Employés",
-      Recrutement: "Gestion des Recurtements",
-      CongesManager: "Validation des Congés",
-      attendance: "Gestion  des Pointages",
-      departments: "Gestion des Departements",
-      reports: "Rapports RH",
-      performance: "Performances",
-      formation: "Suivi des Formations",
-      PaiementPage: " Gestion de paiement"
-    }
-    return titles[activeView] || "Ressources Humaines"
-  }
+//   const getViewTitle = () => {
+//     const titles = {
+//       dashboard: "Tableau de Bord RH",
+//       users: "Gestion des Employés",
+//       Recrutement: "Gestion des Recurtements",
+//       CongesManager: "Validation des Congés",
+//       attendance: "Gestion  des Pointages",
+//       departments: "Gestion des Departements",
+//       reports: "Rapports RH",
+//       performance: "Performances",
+//       formation: "Suivi des Formations",
+//       PaiementPage: " Gestion de paiement"
+//     }
+//     return titles[activeView] || "Ressources Humaines"
+//   }
 
-  if (!user) {
-    return null
-  }
+//   if (!user) {
+//     return null
+//   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <ToastContainer
-        position="top-right"
-        autoClose={8000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
+//   return (
+//     <div className="min-h-screen bg-gray-50 flex">
+//       <ToastContainer
+//         position="top-right"
+//         autoClose={8000}
+//         hideProgressBar={false}
+//         newestOnTop={false}
+//         closeOnClick
+//         rtl={false}
+//         pauseOnFocusLoss
+//         draggable
+//         pauseOnHover
+//         theme="light"
+//       />
 
-      {/* Overlay pour mobile */}
-      {isMobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-        />
-      )}
+//       {/* Overlay pour mobile */}
+//       {isMobileSidebarOpen && (
+//         <div 
+//           className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+//           onClick={() => setIsMobileSidebarOpen(false)}
+//         />
+//       )}
 
-     {/* Sidebar RH avec animations améliorées */}
-<div
-  className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-50 transition-all duration-500 ease-in-out ${
-    sidebarCollapsed ? "w-16" : "w-64"
-  } ${isMobileSidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full md:translate-x-0"}`}
-  style={{
-    boxShadow: isMobileSidebarOpen ? '0 0 25px rgba(0, 0, 0, 0.15)' : 'none'
-  }}
->
-  <div className="p-4 flex justify-between items-center border-b border-gray-100">
-    <div className="flex items-center space-x-3 overflow-hidden">
-      <button
-        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 hidden md:block"
-        aria-label={sidebarCollapsed ? "Agrandir le menu" : "Réduire le menu"}
-      >
-        <Menu className="h-5 w-5 text-gray-800 transition-transform duration-300" />
-      </button>
-      {!sidebarCollapsed && (
-        <div className="animate-fadeInRight">
-          <h1 className="text-xl font-bold text-gray-800">RH</h1>
-          <p className="text-xs text-gray-500">Ressources Humaines</p>
-        </div>
-      )}
-    </div>
-    <button 
-      className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:rotate-90"
-      onClick={() => setIsMobileSidebarOpen(false)}
-      aria-label="Fermer le menu"
-    >
-      <X className="h-5 w-5 text-gray-800 transition-transform duration-300" />
-    </button>
-  </div>
+//      {/* Sidebar RH avec animations améliorées */}
+// <div
+//   className={`fixed left-0 top-0 h-full bg-white shadow-lg border-r border-gray-200 z-50 transition-all duration-500 ease-in-out ${
+//     sidebarCollapsed ? "w-16" : "w-64"
+//   } ${isMobileSidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full md:translate-x-0"}`}
+//   style={{
+//     boxShadow: isMobileSidebarOpen ? '0 0 25px rgba(0, 0, 0, 0.15)' : 'none'
+//   }}
+// >
+//   <div className="p-4 flex justify-between items-center border-b border-gray-100">
+//     <div className="flex items-center space-x-3 overflow-hidden">
+//       <button
+//         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+//         className="p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:scale-110 hidden md:block"
+//         aria-label={sidebarCollapsed ? "Agrandir le menu" : "Réduire le menu"}
+//       >
+//         <Menu className="h-5 w-5 text-gray-800 transition-transform duration-300" />
+//       </button>
+//       {!sidebarCollapsed && (
+//         <div className="animate-fadeInRight">
+//           <h1 className="text-xl font-bold text-gray-800">RH</h1>
+//           <p className="text-xs text-gray-500">Ressources Humaines</p>
+//         </div>
+//       )}
+//     </div>
+//     <button 
+//       className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-all duration-300 hover:rotate-90"
+//       onClick={() => setIsMobileSidebarOpen(false)}
+//       aria-label="Fermer le menu"
+//     >
+//       <X className="h-5 w-5 text-gray-800 transition-transform duration-300" />
+//     </button>
+//   </div>
 
-  <nav className="mt-6">
-    {hrMenuItems.map((item, index) => {
-      const Icon = item.icon
-      const isActive = activeView === item.id
-      return (
-        <button
-          key={item.id}
-          onClick={() => setActiveView(item.id as HRView)}
-          className={`group w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 ${
-            isActive
-              ? "bg-blue-50 text-blue-600 border-r-4 border-blue-600 shadow-inner"
-              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:border-r-4 hover:border-gray-300"
-          } ${sidebarCollapsed ? "justify-center" : ""}`}
-          title={sidebarCollapsed ? item.label : ""}
-          style={{
-            animationDelay: `${index * 50}ms`,
-            transformOrigin: 'left center'
-          }}
-          onMouseEnter={(e) => {
-            if (sidebarCollapsed) {
-              e.currentTarget.classList.add('animate-pulse')
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (sidebarCollapsed) {
-              e.currentTarget.classList.remove('animate-pulse')
-            }
-          }}
-        >
-          <Icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${
-            isActive ? "scale-110" : "group-hover:scale-110"
-          }`} />
-          {!sidebarCollapsed && (
-            <span className="font-medium transition-all duration-300 animate-fadeIn">
-              {item.label}
-            </span>
-          )}
-          {sidebarCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
-              {item.label}
-            </div>
-          )}
-        </button>
-      )
-    })}
-  </nav>
+//   <nav className="mt-6">
+//     {hrMenuItems.map((item, index) => {
+//       const Icon = item.icon
+//       const isActive = activeView === item.id
+//       return (
+//         <button
+//           key={item.id}
+//           onClick={() => setActiveView(item.id as HRView)}
+//           className={`group w-full flex items-center space-x-3 px-4 py-3 text-left transition-all duration-300 ${
+//             isActive
+//               ? "bg-blue-50 text-blue-600 border-r-4 border-blue-600 shadow-inner"
+//               : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:border-r-4 hover:border-gray-300"
+//           } ${sidebarCollapsed ? "justify-center" : ""}`}
+//           title={sidebarCollapsed ? item.label : ""}
+//           style={{
+//             animationDelay: `${index * 50}ms`,
+//             transformOrigin: 'left center'
+//           }}
+//           onMouseEnter={(e) => {
+//             if (sidebarCollapsed) {
+//               e.currentTarget.classList.add('animate-pulse')
+//             }
+//           }}
+//           onMouseLeave={(e) => {
+//             if (sidebarCollapsed) {
+//               e.currentTarget.classList.remove('animate-pulse')
+//             }
+//           }}
+//         >
+//           <Icon className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${
+//             isActive ? "scale-110" : "group-hover:scale-110"
+//           }`} />
+//           {!sidebarCollapsed && (
+//             <span className="font-medium transition-all duration-300 animate-fadeIn">
+//               {item.label}
+//             </span>
+//           )}
+//           {sidebarCollapsed && (
+//             <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+//               {item.label}
+//             </div>
+//           )}
+//         </button>
+//       )
+//     })}
+//   </nav>
 
-  {/* Section déconnexion dans le sidebar */}
-  <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 bg-white">
-    <button
-      onClick={handleLogout}
-      disabled={logoutLoading}
-      className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-300 group"
-      aria-label="Se déconnecter"
-    >
-      {logoutLoading ? (
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
-      ) : (
-        <>
-          <LogOut className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-          {!sidebarCollapsed && (
-            <span className="transition-all duration-300 animate-fadeIn">
-              {logoutLoading ? "Déconnexion..." : "Déconnexion"}
-            </span>
-          )}
-        </>
-      )}
-    </button>
-  </div>
-</div>
+//   {/* Section déconnexion dans le sidebar */}
+//   <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 bg-white">
+//     <button
+//       onClick={handleLogout}
+//       disabled={logoutLoading}
+//       className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-300 group"
+//       aria-label="Se déconnecter"
+//     >
+//       {logoutLoading ? (
+//         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
+//       ) : (
+//         <>
+//           <LogOut className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+//           {!sidebarCollapsed && (
+//             <span className="transition-all duration-300 animate-fadeIn">
+//               {logoutLoading ? "Déconnexion..." : "Déconnexion"}
+//             </span>
+//           )}
+//         </>
+//       )}
+//     </button>
+//   </div>
+// </div>
 
-      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "md:ml-16" : "md:ml-64"}`}>
-        {/* Header RH avec profil utilisateur */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-4 md:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <button 
-                className="md:hidden mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                onClick={() => setIsMobileSidebarOpen(true)}
-              >
-                <Menu className="h-5 w-5 text-gray-800" />
-              </button>
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
-                <p className="text-xs md:text-sm text-gray-600">
-                  Bienvenue, {user.prenom} {user.nom}
-                </p>
-              </div>
-            </div>
+//       <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? "md:ml-16" : "md:ml-64"}`}>
+//         {/* Header RH avec profil utilisateur */}
+//         <header className="bg-white shadow-sm border-b border-gray-200 px-4 md:px-6 py-4">
+//           <div className="flex items-center justify-between">
+//             <div className="flex items-center">
+//               <button 
+//                 className="md:hidden mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+//                 onClick={() => setIsMobileSidebarOpen(true)}
+//               >
+//                 <Menu className="h-5 w-5 text-gray-800" />
+//               </button>
+//               <div>
+//                 <h1 className="text-xl md:text-2xl font-bold text-gray-800">{getViewTitle()}</h1>
+//                 <p className="text-xs md:text-sm text-gray-600">
+//                   Bienvenue, {user.prenom} {user.nom}
+//                 </p>
+//               </div>
+//             </div>
 
-            <div className="flex items-center space-x-2 md:space-x-4">
-              {/* Bouton notifications */}
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Bell className="h-5 w-5" />
-              </button>
+//             <div className="flex items-center space-x-2 md:space-x-4">
+//               {/* Bouton notifications */}
+//               <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+//                 <Bell className="h-5 w-5" />
+//               </button>
 
-              {/* Profil utilisateur avec dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium text-sm">
-                      {user.prenom?.[0]}
-                      {user.nom?.[0]}
-                    </span>
-                  </div>
-                  <div className="text-left hidden md:block">
-                    <div className="text-sm font-medium text-gray-900">
-                      {user.prenom} {user.nom}
-                    </div>
-                    <div className="text-xs text-gray-500 capitalize">{user.role}</div>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
-                </button>
+//               {/* Profil utilisateur avec dropdown */}
+//               <div className="relative">
+//                 <button
+//                   onClick={() => setShowUserDropdown(!showUserDropdown)}
+//                   className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+//                 >
+//                   <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
+//                     <span className="text-white font-medium text-sm">
+//                       {user.prenom?.[0]}
+//                       {user.nom?.[0]}
+//                     </span>
+//                   </div>
+//                   <div className="text-left hidden md:block">
+//                     <div className="text-sm font-medium text-gray-900">
+//                       {user.prenom} {user.nom}
+//                     </div>
+//                     <div className="text-xs text-gray-500 capitalize">{user.role}</div>
+//                   </div>
+//                   <ChevronDown className="h-4 w-4 text-gray-500" />
+//                 </button>
 
-                {showUserDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    <div className="px-4 py-2 border-b border-gray-200">
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.prenom} {user.nom}
-                      </div>
-                      <div className="text-xs text-gray-500">{user.email}</div>
-                    </div>
-                    <div className="py-1">
-                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Mon profil
-                      </button>
-                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Paramètres
-                      </button>
-                    </div>
-                    <div className="border-t border-gray-200 py-1">
-                      <button
-                        onClick={handleLogout}
-                        disabled={logoutLoading}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 disabled:opacity-50"
-                      >
-                        {logoutLoading ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
-                        ) : (
-                          <LogOut className="h-4 w-4" />
-                        )}
-                        <span>{logoutLoading ? "Déconnexion..." : "Déconnexion"}</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
+//                 {showUserDropdown && (
+//                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+//                     <div className="px-4 py-2 border-b border-gray-200">
+//                       <div className="text-sm font-medium text-gray-900">
+//                         {user.prenom} {user.nom}
+//                       </div>
+//                       <div className="text-xs text-gray-500">{user.email}</div>
+//                     </div>
+//                     <div className="py-1">
+//                       <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+//                         Mon profil
+//                       </button>
+//                       <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+//                         Paramètres
+//                       </button>
+//                     </div>
+//                     <div className="border-t border-gray-200 py-1">
+//                       <button
+//                         onClick={handleLogout}
+//                         disabled={logoutLoading}
+//                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 disabled:opacity-50"
+//                       >
+//                         {logoutLoading ? (
+//                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
+//                         ) : (
+//                           <LogOut className="h-4 w-4" />
+//                         )}
+//                         <span>{logoutLoading ? "Déconnexion..." : "Déconnexion"}</span>
+//                       </button>
+//                     </div>
+//                   </div>
+//                 )}
+//               </div>
+//             </div>
+//           </div>
+//         </header>
 
-        {/* Content */}
-        <div className="p-4 md:p-6 animate-fadeIn">
-          {renderView()}
-        </div>
-      </main>
+//         {/* Content */}
+//         <div className="p-4 md:p-6 animate-fadeIn">
+//           {renderView()}
+//         </div>
+//       </main>
 
-      {/* Styles CSS pour le calendrier */}
-      <style>
-        {`
-          .rbc-month-view {
-            border-radius: 0.5rem;
-            border: 1px solid #e5e7eb;
-          }
-          .rbc-header {
-            border-bottom: 1px solid #e5e7eb;
-            padding: 8px 0;
-            font-weight: 600;
-            color: #374151;
-          }
-          .rbc-date-cell {
-            text-align: center;
-            padding: 4px;
-          }
-          .rbc-off-range {
-            color: #9ca3af;
-          }
-          .rbc-today {
-            background-color: #eff6ff;
-          }
-          .rbc-event {
-            border: none;
-            border-radius: 4px;
-            padding: 2px 4px;
-            font-size: 0.75rem;
-            margin: 1px;
-          }
-          .rbc-row-content {
-            z-index: 1;
-          }
-          .rbc-show-more {
-            background-color: rgba(255, 255, 255, 0.8);
-            z-index: 2;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-weight: 500;
-          }
-          .calendar-container {
-            height: 100%;
-          }
-          .animate-fadeIn {
-            animation: fadeIn 0.5s ease-in-out;
-          }
-          .animate-fadeInUp {
-            animation: fadeInUp 0.5s ease-out;
-          }
-          .hover-lift:hover {
-            transform: translateY(-2px);
-            transition: transform 0.2s ease-in-out;
-          }
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes fadeInUp {
-            from { 
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to { 
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-          @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-          }
-          .animate-pulse {
-            animation: pulse 2s infinite;
-          }
+//       {/* Styles CSS pour le calendrier */}
+//       <style>
+//         {`
+//           .rbc-month-view {
+//             border-radius: 0.5rem;
+//             border: 1px solid #e5e7eb;
+//           }
+//           .rbc-header {
+//             border-bottom: 1px solid #e5e7eb;
+//             padding: 8px 0;
+//             font-weight: 600;
+//             color: #374151;
+//           }
+//           .rbc-date-cell {
+//             text-align: center;
+//             padding: 4px;
+//           }
+//           .rbc-off-range {
+//             color: #9ca3af;
+//           }
+//           .rbc-today {
+//             background-color: #eff6ff;
+//           }
+//           .rbc-event {
+//             border: none;
+//             border-radius: 4px;
+//             padding: 2px 4px;
+//             font-size: 0.75rem;
+//             margin: 1px;
+//           }
+//           .rbc-row-content {
+//             z-index: 1;
+//           }
+//           .rbc-show-more {
+//             background-color: rgba(255, 255, 255, 0.8);
+//             z-index: 2;
+//             padding: 2px 4px;
+//             border-radius: 3px;
+//             font-weight: 500;
+//           }
+//           .calendar-container {
+//             height: 100%;
+//           }
+//           .animate-fadeIn {
+//             animation: fadeIn 0.5s ease-in-out;
+//           }
+//           .animate-fadeInUp {
+//             animation: fadeInUp 0.5s ease-out;
+//           }
+//           .hover-lift:hover {
+//             transform: translateY(-2px);
+//             transition: transform 0.2s ease-in-out;
+//           }
+//           @keyframes fadeIn {
+//             from { opacity: 0; }
+//             to { opacity: 1; }
+//           }
+//           @keyframes fadeInUp {
+//             from { 
+//               opacity: 0;
+//               transform: translateY(20px);
+//             }
+//             to { 
+//               opacity: 1;
+//               transform: translateY(0);
+//             }
+//           }
+//           @keyframes pulse {
+//             0% { transform: scale(1); }
+//             50% { transform: scale(1.05); }
+//             100% { transform: scale(1); }
+//           }
+//           .animate-pulse {
+//             animation: pulse 2s infinite;
+//           }
 
-          /* Responsive adjustments for mobile */
-          @media (max-width: 768px) {
-            .rbc-toolbar {
-              flex-direction: column;
-              align-items: flex-start;
-            }
-            .rbc-toolbar .rbc-toolbar-label {
-              margin: 8px 0;
-            }
-            .rbc-btn-group {
-              margin-bottom: 8px;
-            }
-          }
+//           /* Responsive adjustments for mobile */
+//           @media (max-width: 768px) {
+//             .rbc-toolbar {
+//               flex-direction: column;
+//               align-items: flex-start;
+//             }
+//             .rbc-toolbar .rbc-toolbar-label {
+//               margin: 8px 0;
+//             }
+//             .rbc-btn-group {
+//               margin-bottom: 8px;
+//             }
+//           }
 
-          /* Improved responsive table */
-          @media (max-width: 640px) {
-            table {
-              display: block;
-              width: 100%;
-              overflow-x: auto;
-            }
-            th, td {
-              padding: 8px 4px;
-              font-size: 0.75rem;
-            }
-          }
-        `}
-      </style>
-    </div>
-  )
-}
+//           /* Improved responsive table */
+//           @media (max-width: 640px) {
+//             table {
+//               display: block;
+//               width: 100%;
+//               overflow-x: auto;
+//             }
+//             th, td {
+//               padding: 8px 4px;
+//               font-size: 0.75rem;
+//             }
+//           }
+//         `}
+//       </style>
+//     </div>
+//   )
+// }

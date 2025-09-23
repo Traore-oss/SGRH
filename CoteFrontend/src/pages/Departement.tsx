@@ -556,7 +556,7 @@ export const Departments: React.FC = () => {
           delay={2}
         />
         <StatCard
-          icon={<DollarSign className="h-6 w-6 text-white" />}
+          icon={<DollarSign className="h-10 w-10 text-white" />}
           value={`${departments.reduce((sum, dept) => sum + (dept.budget || 0), 0).toLocaleString('fr-FR')} GNF`}
           label="Budget total"
           color="bg-purple-500"

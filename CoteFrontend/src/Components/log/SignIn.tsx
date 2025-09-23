@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { User, Lock, Eye, EyeOff, Mail, AlertCircle, CheckCircle } from 'lucide-react';
+import {Lock, Eye, EyeOff, Mail, AlertCircle, CheckCircle } from 'lucide-react';
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -73,11 +73,11 @@ const SignIn: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 py-4 px-6 text-center">
             <div className="flex justify-center mb-2">
-              <div className="bg-white p-3 rounded-full shadow-lg">
+              <div className=" p-1 rounded-full ">
                 <img 
                   src="../../../src/public/SGRH_Logo_-_Wordmark_Style-removebg-preview.png" 
                   alt="Logo SGRH" 
-                  className="h-20 w-auto mx-auto"
+                  className="h-40 w-auto mx-auto"
                 />
               </div>
             </div>

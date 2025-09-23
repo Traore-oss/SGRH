@@ -542,86 +542,112 @@ const Recrutement = () => {
                     <p className="text-gray-500">Aucun candidat pour cette offre.</p>
                   </div>
                 ) : (
-                  <div className="grid gap-4">
-                    {showCandidatsModal.candidats.map((candidat) => (
-                      <div key={candidat._id} className="bg-gray-50 rounded-lg p-4 transition-all duration-300 hover:shadow-md">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                          <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">
-                              {candidat.prenom} {candidat.nom}
-                            </h3>
-                            <p className="text-sm text-gray-600">{candidat.email}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBadgeClass(candidat.statutCandidature || "En attente")}`}>
-                                {candidat.statutCandidature || "En attente"}
-                              </span>
-                              {candidat.cvUrl && (
-                                <a
-                                  href={candidat.cvUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"
-                                >
-                                  <Download className="h-3 w-3" />
-                                  Voir CV
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => openCandidateDetails(candidat)}
-                              className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200"
-                              title="Voir détails"
-                            >
-                              <Eye className="h-4 w-4" />
-                              Détails
-                            </button>
-                            <button
-                              onClick={() => updateCandidatStatus(candidat._id, "Accepté")}
-                              disabled={candidat.statutCandidature === "Accepté" || loadingActions[candidat._id]}
-                              className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                            >
-                              {loadingActions[candidat._id] ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                              ) : (
-                                <Check className="h-4 w-4" />
-                              )}
-                              Accepter
-                            </button>
-                            <button
-                              onClick={() => updateCandidatStatus(candidat._id, "Refusé")}
-                              disabled={candidat.statutCandidature === "Refusé" || loadingActions[candidat._id]}
-                              className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                            >
-                              {loadingActions[candidat._id] ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                              ) : (
-                                <XCircle className="h-4 w-4" />
-                              )}
-                              Refuser
-                            </button>
-                            <button
-                              onClick={() => updateCandidatStatus(candidat._id, "En attente")}
-                              disabled={candidat.statutCandidature === "En attente" || loadingActions[candidat._id]}
-                              className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                            >
-                              {loadingActions[candidat._id] ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                              ) : (
-                                <Clock className="h-4 w-4" />
-                              )}
-                              En attente
-                            </button>
-                          </div>
-                        </div>
+                <div className="grid gap-4">
+                      {showCandidatsModal?.candidats?.map((candidat) => (
+                      <div
+                      key={candidat._id}
+                      className="bg-gray-50 rounded-lg p-4 transition-all duration-300 hover:shadow-md"
+                      >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      {/* Infos candidat */}
+                      <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">
+                      {candidat.prenom} {candidat.nom}
+                      </h3>
+                      <p className="text-sm text-gray-600">{candidat.email}</p>
+
+                      <div className="flex items-center gap-2 mt-2">
+                      <span
+                      className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBadgeClass(
+                      candidat.statutCandidature || "En attente"
+                      )}`}
+                      >
+                      {candidat.statutCandidature || "En attente"}
+                      </span>
+
+                      {candidat.cvUrl && (
+                      <a
+                      href={candidat.cvUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 transition-colors duration-200"
+                      >
+                      <Download className="h-3 w-3" />
+                      Voir CV
+                      </a>
+                      )}
                       </div>
-                    ))}
-                  </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                      {/* Voir détails */}
+                      <button
+                      onClick={() => openCandidateDetails(candidat)}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200"
+                      title="Voir détails"
+                      >
+                      <Eye className="h-4 w-4" />
+                      Détails
+                      </button>
+
+                      {/* Accepter */}
+                      <button
+                      onClick={() => updateCandidatStatus(candidat._id, "Accepté")}
+                      disabled={
+                      candidat.statutCandidature === "Accepté" ||
+                      loadingActions[candidat._id]
+                      }
+                      className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                      {loadingActions[candidat._id] ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      ) : (
+                      <Check className="h-4 w-4" />
+                      )}
+                      Accepter
+                      </button>
+
+                      {/* Refuser */}
+                      <button
+                      onClick={() => updateCandidatStatus(candidat._id, "Refusé")}
+                      disabled={
+                      candidat.statutCandidature === "Refusé" ||
+                      loadingActions[candidat._id]
+                      }
+                      className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                      {loadingActions[candidat._id] ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      ) : (
+                      <XCircle className="h-4 w-4" />
+                      )}
+                      Refuser
+                      </button>
+
+                      {/* Remettre en attente */}
+                      <button
+                      onClick={() => updateCandidatStatus(candidat._id, "En attente")}
+                      disabled={
+                      candidat.statutCandidature === "En attente" ||
+                      loadingActions[candidat._id]
+                      }
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                      {loadingActions[candidat._id] ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      ) : (
+                      <Clock className="h-4 w-4" />
+                      )}
+                      En attente
+                      </button>
+                      </div>
+                      </div>
+                      </div>
+                      ))}
+                </div>
                 )}
               </div>
-
               <div className="flex justify-end p-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowCandidatsModal(null)}

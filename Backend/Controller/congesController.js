@@ -115,8 +115,6 @@ const sendEmail = async (to, subject, text) => {
 
   await transporter.sendMail({ from: process.env.SMTP_USER, to, subject, text });
 };
-
-// === Récupérer tous les congés ===
 // === Récupérer tous les congés ===
 exports.getAllConges = async (req, res) => {
   try {

@@ -4,8 +4,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { LoadingSpinner } from "../LoadingSpinner";
 
-import { AdminDashboard } from "../../roleDashboard/AdminDashboard";
-import { HRDashboard } from "../../roleDashboard/RhDashboard";
+// import { AdminDashboard } from "../../roleDashboard/AdminDashboard";
+// import { HRDashboard } from "../../roleDashboard/RhDashboard";
 import EmployerDashboard from "../../roleDashboard/EmployerDashboard";
 
 import SignIn from "../log/SignIn";
@@ -14,6 +14,7 @@ import ResetPassword from "../log/ResetPassword";
 import HomePage from "../../pages/Acceuil";
 import CandidatureForm from "../../pages/Candidature";
 import CreateRHForm from "../log/SingUp";
+import { HRDashboard } from "../../pages/Dashboard";
 
 // Route protégée par rôle
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string[] }> = ({ children, allowedRoles }) => {
@@ -45,7 +46,7 @@ const AppRoutes: React.FC = () => {
         path="/admin-dashboard"
         element={
           <ProtectedRoute allowedRoles={["Admin"]}>
-            <AdminDashboard />
+            <HRDashboard />
           </ProtectedRoute>
         }
       />

@@ -128,7 +128,6 @@ exports.updateOffre = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la mise à jour de l'offre" });
   }
 };
-
 // ==================== Supprimer une offre ====================
 exports.deleteOffre = async (req, res) => {
   try {
@@ -160,7 +159,6 @@ exports.getCandidats = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la récupération des candidats" });
   }
 };
-
 // ==================== Accepter ou refuser une candidature ====================
 exports.updateCandidatureStatus = async (req, res) => {
   try {
